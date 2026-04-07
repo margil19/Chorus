@@ -131,8 +131,15 @@ function XIcon() {
 function HeroLogo() {
   return (
     <h1
-      className="text-white text-4xl leading-none tracking-tight"
-      style={{ fontFamily: 'var(--font-dm-serif)' }}
+      style={{
+        fontSize: '28px',
+        fontWeight: 600,
+        color: 'white',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        letterSpacing: '-0.01em',
+        lineHeight: 1,
+        margin: 0,
+      }}
     >
       Chorus
     </h1>
@@ -944,12 +951,7 @@ export default function Home() {
               style={{ maxWidth: '1100px', padding: '0.75rem 2rem' }}
             >
               <button onClick={reset} className="flex items-center gap-3 group">
-                <span
-                  className="text-white text-lg leading-none"
-                  style={{ fontFamily: 'var(--font-dm-serif)' }}
-                >
-                  Chorus
-                </span>
+                <span style={{ fontSize: '20px', fontWeight: 600, color: 'white', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', letterSpacing: '-0.01em' }}>Chorus</span>
                 <span
                   className="text-xs transition-colors duration-150"
                   style={{ color: 'rgba(255,255,255,0.4)' }}
@@ -1002,34 +1004,63 @@ export default function Home() {
             {!hasResult && !loading && (
               <>
                 <BucketedQuestions onSelect={handleChipSelect} />
-                <div className="flex justify-center" style={{ marginTop: '2rem' }}>
+                <div className="flex flex-wrap justify-center gap-3" style={{ marginTop: '2rem' }}>
+                  {[
+                    { href: '/mental-models', label: 'Browse Mental Model Library →' },
+                    { href: '/debate', label: 'Guest vs Guest →' },
+                  ].map(({ href, label }) => (
+                    <a
+                      key={href}
+                      href={href}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        color: 'rgba(255,255,255,0.6)',
+                        borderRadius: '100px',
+                        padding: '0.6rem 1.5rem',
+                        fontSize: '14px',
+                        textDecoration: 'none',
+                        transition: 'border-color 0.2s, color 0.2s',
+                        display: 'inline-block',
+                      }}
+                      onMouseEnter={(e) => {
+                        const el = e.currentTarget
+                        el.style.borderColor = 'rgba(255,255,255,0.6)'
+                        el.style.color = 'white'
+                      }}
+                      onMouseLeave={(e) => {
+                        const el = e.currentTarget
+                        el.style.borderColor = 'rgba(255,255,255,0.3)'
+                        el.style.color = 'rgba(255,255,255,0.6)'
+                      }}
+                    >
+                      {label}
+                    </a>
+                  ))}
+                </div>
+                <p
+                  style={{
+                    color: 'rgba(255,255,255,0.3)',
+                    fontSize: '12px',
+                    textAlign: 'center',
+                    marginTop: '2rem',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                  }}
+                >
+                  Transcripts sourced from Lenny Rachitsky&rsquo;s open podcast archive&nbsp;&middot;&nbsp;
                   <a
-                    href="/mental-models"
+                    href="https://www.lenny.fm"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     style={{
-                      background: 'transparent',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                      color: 'rgba(255,255,255,0.6)',
-                      borderRadius: '100px',
-                      padding: '0.6rem 1.5rem',
-                      fontSize: '14px',
-                      textDecoration: 'none',
-                      transition: 'border-color 0.2s, color 0.2s',
-                      display: 'inline-block',
-                    }}
-                    onMouseEnter={(e) => {
-                      const el = e.currentTarget
-                      el.style.borderColor = 'rgba(255,255,255,0.6)'
-                      el.style.color = 'white'
-                    }}
-                    onMouseLeave={(e) => {
-                      const el = e.currentTarget
-                      el.style.borderColor = 'rgba(255,255,255,0.3)'
-                      el.style.color = 'rgba(255,255,255,0.6)'
+                      color: 'rgba(255,255,255,0.3)',
+                      textDecoration: 'underline',
+                      textDecorationColor: 'rgba(255,255,255,0.2)',
                     }}
                   >
-                    Browse Mental Model Library →
+                    lenny.fm
                   </a>
-                </div>
+                </p>
               </>
             )}
 

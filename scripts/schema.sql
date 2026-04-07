@@ -77,7 +77,8 @@ END $$;
 CREATE OR REPLACE FUNCTION match_chunks(
   query_embedding halfvec(1024),
   query_text      text,
-  match_count     int DEFAULT 60
+  match_count     int DEFAULT 60,
+  guest_filter    text DEFAULT NULL
 )
 RETURNS TABLE (
   chunk_id        uuid,
@@ -116,6 +117,7 @@ AS $$
     FROM chunks c
     JOIN episodes e ON e.id = c.episode_id
     WHERE c.is_guest = true
+      AND (guest_filter IS NULL OR e.guest = guest_filter)
     ORDER BY c.embedding <=> query_embedding
     -- Over-fetch so phase-2 re-ranking has room to promote text matches
     LIMIT match_count * 4
@@ -146,5 +148,5 @@ AS $$
     guest_context
   FROM vector_candidates
   ORDER BY similarity DESC
-  LIMIT 60;
+  LIMIT match_count;
 $$;
