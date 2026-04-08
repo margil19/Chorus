@@ -521,8 +521,21 @@ export default function DebatePage() {
   const [result, setResult] = useState<DebateApiResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Load guest list on mount
+  // Load guest list on mount; pre-fill from URL params
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const g1 = params.get('guest1')
+    const g2 = params.get('guest2')
+    if (g1) setGuest1(g1)
+    if (g2) setGuest2(g2)
+    // Clear params from URL without reload
+    if (g1 || g2) {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('guest1')
+      url.searchParams.delete('guest2')
+      window.history.replaceState({}, '', url.toString())
+    }
+
     fetch('/api/guests')
       .then((r) => r.json())
       .then((d: { guests?: string[] }) => setGuests(d.guests ?? []))

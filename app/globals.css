@@ -2,7 +2,7 @@
 
 /* ── Design tokens ──────────────────────────────────────────── */
 :root {
-  --background:  #0A0A0A;
+  --background:  #080C14;
   --foreground:  #E5E5E5;
   --surface:     #111111;
   --border:      #1F1F1F;
@@ -33,6 +33,51 @@ body {
 }
 
 /* ── Keyframes ──────────────────────────────────────────────── */
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%       { opacity: 0.9; transform: scale(1.4); }
+}
+
+@keyframes drawLine {
+  from { stroke-dashoffset: 100; opacity: 0; }
+  to   { stroke-dashoffset: 0;   opacity: 1; }
+}
+
+@keyframes gridIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideFromLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideFromRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes drawDash {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes expandIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cardsExit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(-20px) scale(0.97); }
+}
+
+@keyframes resultsEnter {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes fadeSlideIn {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }

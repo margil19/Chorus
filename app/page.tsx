@@ -873,6 +873,10 @@ function ErrorMessage({ message }: { message: string }) {
   )
 }
 
+// ── Page constants ────────────────────────────────────────────────────────────
+
+const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -882,6 +886,66 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
   const [selectedSource, setSelectedSource] = useState<Source | null>(null)
   const resultRef = useRef<HTMLDivElement>(null)
+  const [guestFilter, setGuestFilter] = useState<{ domain: string; guests: string[] } | null>(null)
+  const [hoveredCard, setHoveredCard] = useState<number | null>(null)
+  const card1InputRef = useRef<HTMLInputElement>(null)
+  const [brainExpanded, setBrainExpanded] = useState(false)
+  const [selectedBucket, setSelectedBucket] = useState<number | null>(null)
+
+  // On mount: read ?guest= param and sessionStorage filter
+  useEffect(() => {
+    // Read guest filter from sessionStorage
+    const raw = sessionStorage.getItem('chorus_guest_filter')
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as { domain: string; guests: string[] }
+        setGuestFilter(parsed)
+      } catch { /* ignore */ }
+    }
+
+    // Read ?guest= URL param and auto-ask
+    const params = new URLSearchParams(window.location.search)
+    const guest = params.get('guest')
+    if (guest) {
+      // Clear the param from URL without reload
+      const url = new URL(window.location.href)
+      url.searchParams.delete('guest')
+      window.history.replaceState({}, '', url.toString())
+      // Auto-ask after a short delay so `ask` is stable
+      setTimeout(() => {
+        askWithGuest(guest)
+      }, 100)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const askWithGuest = useCallback(async (guestName: string) => {
+    const q = `What are ${guestName}'s key ideas and mental models?`
+    setQuestion(q)
+    setLoading(true)
+    setResponse(null)
+    setError(null)
+    try {
+      const res = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q, skipRewrite: true }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error ?? 'Something went wrong. Please try again.')
+      } else {
+        setResponse(data as AskApiResponse)
+        setTimeout(() => {
+          resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 100)
+      }
+    } catch {
+      setError('Network error — please check your connection and try again.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   const ask = useCallback(
     async (q: string, skipRewrite?: boolean) => {
@@ -893,11 +957,16 @@ export default function Home() {
       setResponse(null)
       setError(null)
 
+      // If guest filter active, append guest list to question
+      const guestSuffix = guestFilter
+        ? ` Focus only on these guests: ${guestFilter.guests.join(', ')}.`
+        : ''
+
       try {
         const res = await fetch('/api/ask', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: trimmed, ...(skipRewrite && { skipRewrite: true }) }),
+          body: JSON.stringify({ question: trimmed + guestSuffix, ...(skipRewrite && { skipRewrite: true }) }),
         })
 
         const data = await res.json()
@@ -916,7 +985,7 @@ export default function Home() {
         setLoading(false)
       }
     },
-    [loading]
+    [loading, guestFilter]
   )
 
   const handleChipSelect = (q: string) => {
@@ -929,162 +998,277 @@ export default function Home() {
     setError(null)
     setQuestion('')
     setSelectedSource(null)
+    setBrainExpanded(false)
+    setSelectedBucket(null)
+  }
+
+  const clearGuestFilter = () => {
+    sessionStorage.removeItem('chorus_guest_filter')
+    setGuestFilter(null)
   }
 
   const hasResult = Boolean(response || error || loading)
 
+  // ── Card style helper ─────────────────────────────────────────────────────────
+
+  const cardStyle = (
+    hoverShadow: string,
+    bg: string,
+    borderDefault: string,
+    delay: string,
+    idx: number,
+  ): React.CSSProperties => {
+    const hovered = hoveredCard === idx
+    return {
+      width: '340px',
+      height: '420px',
+      borderRadius: '24px',
+      position: 'relative',
+      cursor: 'pointer',
+      overflow: 'hidden',
+      background: bg,
+      border: `1px solid ${borderDefault}`,
+      boxShadow: hovered ? hoverShadow : 'none',
+      transform: hovered ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
+      transition: 'box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.4,0,0.2,1), border-color 0.3s ease',
+      animation: loading ? `cardsExit 0.35s ease-in forwards` : `cardReveal 0.7s ease-out ${delay} both`,
+      display: 'flex',
+      flexDirection: 'column',
+      fontFamily: FONT,
+    }
+  }
+
   return (
     <>
-      <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
+      <style>{`
+        @keyframes cardReveal {
+          0%   { opacity: 0; transform: translateY(40px) scale(0.96); }
+          60%  { opacity: 1; transform: translateY(-6px) scale(1.01); }
+          80%  { transform: translateY(3px) scale(0.99); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes fadeInDown {
+          from { opacity: 0; transform: translateY(-10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
 
-        {/* ── Compact results-state header ── */}
-        {hasResult && (
-          <header
-            className="sticky top-0 z-10 backdrop-blur-sm animate-fade-in"
+      {/* ── Idle state — three-card homepage ── */}
+      {!hasResult && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: '#080C14',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            fontFamily: FONT,
+            paddingTop: '3rem',
+          }}
+        >
+          {/* Logo + tagline */}
+          <div
             style={{
-              borderBottom: '1px solid rgba(255,255,255,0.08)',
-              background: 'rgba(10,10,10,0.95)',
+              textAlign: 'center',
+              animation: 'fadeInDown 0.6s ease-out forwards',
+              marginBottom: '3rem',
             }}
           >
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 500, color: 'white', letterSpacing: '0.02em', margin: 0, lineHeight: 1 }}>
+              Chorus
+            </h1>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', marginTop: '0.5rem', marginBottom: 0 }}>
+              270 podcast episodes. One place to think.
+            </p>
+
+            {guestFilter && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.625rem', marginTop: '1rem' }}>
+                <span style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '100px', padding: '0.3rem 0.875rem', fontSize: '13px', color: 'rgba(255,255,255,0.65)' }}>
+                  Filtering to {guestFilter.guests.length} {guestFilter.domain} guests
+                </span>
+                <button
+                  onClick={clearGuestFilter}
+                  style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: '13px', cursor: 'pointer', padding: 0, transition: 'color 0.15s' }}
+                  onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = 'white')}
+                  onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.35)')}
+                >
+                  × clear
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Three feature cards ── */}
+          <div
+            style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', justifyContent: 'center', padding: '0 2rem' }}
+          >
+
+            {/* ── CARD 1 — THE BRAIN ── */}
             <div
-              className="mx-auto flex items-center gap-4"
-              style={{ maxWidth: '1100px', padding: '0.75rem 2rem' }}
+              style={cardStyle('0 24px 80px rgba(232,84,58,0.18), 0 0 0 1px rgba(232,84,58,0.4)', '#1C0F0A', 'rgba(232,84,58,0.35)', '0.1s', 0)}
+              onMouseEnter={() => setHoveredCard(0)}
+              onMouseLeave={() => setHoveredCard(null)}
+              onClick={(e) => { e.stopPropagation(); window.location.href = '/ask' }}
             >
+              <div style={{ flex: 1, padding: '2rem 2rem 1rem', display: 'flex', flexDirection: 'column' }}>
+                <span style={{ color: 'rgba(232,84,58,0.7)', fontSize: '12px', letterSpacing: '0.15em', fontWeight: 500 }}>01</span>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="160" height="120" viewBox="0 0 160 120" style={{ opacity: hoveredCard === 0 ? 1 : 0.7, transition: 'opacity 0.3s' }}>
+                    {([
+                      [20,60,45,25],[45,25,80,45],[80,45,110,20],[110,20,140,50],
+                      [140,50,120,85],[120,85,75,95],[75,95,35,80],[35,80,20,60],
+                      [80,45,120,85],[45,25,75,95],
+                    ] as [number,number,number,number][]).map(([x1,y1,x2,y2], i) => (
+                      <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
+                        stroke="rgba(232,84,58,0.25)" strokeWidth="1"
+                        strokeDasharray="100"
+                        style={{ animation: `drawLine 1.5s ease-out ${0.2 + i * 0.18}s forwards`, opacity: 0 }}
+                      />
+                    ))}
+                    {([[20,60],[45,25],[80,45],[110,20],[140,50],[120,85],[75,95],[35,80]] as [number,number][]).map(([cx,cy], i) => (
+                      <circle key={i} cx={cx} cy={cy} r="3" fill="rgba(232,84,58,0.8)"
+                        style={{ animation: `pulse 2.5s ease-in-out ${i * 0.3}s infinite` }}
+                      />
+                    ))}
+                  </svg>
+                </div>
+              </div>
+              <div style={{ padding: '1.5rem 2rem 2rem' }}>
+                <p style={{ color: 'white', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>The Brain</p>
+                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px', lineHeight: 1.5, marginBottom: '1.25rem' }}>Ask anything across 270 episodes</p>
+                <a href="/ask" onClick={(e) => e.stopPropagation()}
+                  style={{ color: '#E8543A', fontSize: '13px', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                  Ask anything →
+                </a>
+              </div>
+            </div>
+
+            {/* ── CARD 2 — THE LIBRARY ── */}
+            <div
+              style={cardStyle('0 24px 80px rgba(56,189,248,0.18), 0 0 0 1px rgba(56,189,248,0.4)', '#081828', 'rgba(56,189,248,0.35)', '0.2s', 1)}
+              onMouseEnter={() => setHoveredCard(1)}
+              onMouseLeave={() => setHoveredCard(null)}
+              onClick={(e) => { e.stopPropagation(); window.location.href = '/mental-models' }}
+            >
+              <div style={{ flex: 1, padding: '2rem 2rem 1rem', display: 'flex', flexDirection: 'column' }}>
+                <span style={{ color: 'rgba(56,189,248,0.7)', fontSize: '12px', letterSpacing: '0.15em', fontWeight: 500 }}>02</span>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="120" height="100" viewBox="0 0 120 100" style={{ opacity: hoveredCard === 1 ? 1 : 0.7, transition: 'opacity 0.3s' }}>
+                    {Array.from({ length: 20 }).map((_, i) => {
+                      const col = i % 4
+                      const row = Math.floor(i / 4)
+                      const highlighted = [1, 4, 7, 11, 14, 18].includes(i)
+                      return (
+                        <rect key={i} x={col * 24 + 6} y={row * 20 + 5} width="16" height="16" rx="4"
+                          fill={highlighted ? 'rgba(56,189,248,0.45)' : 'rgba(56,189,248,0.15)'}
+                          stroke="rgba(56,189,248,0.35)" strokeWidth="1"
+                          style={{ animation: `gridIn 0.3s ease-out ${i * 0.05}s both` }}
+                        />
+                      )
+                    })}
+                  </svg>
+                </div>
+              </div>
+              <div style={{ padding: '1.5rem 2rem 2rem' }}>
+                <p style={{ color: 'white', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>The Library</p>
+                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px', lineHeight: 1.5, marginBottom: '1.25rem' }}>Browse 1,900+ mental models by theme</p>
+                <div style={{ color: '#38BDF8', fontSize: '13px', fontWeight: 500 }}>Explore →</div>
+              </div>
+            </div>
+
+            {/* ── CARD 3 — THE ARENA ── */}
+            <div
+              style={cardStyle('0 24px 80px rgba(167,139,250,0.18), 0 0 0 1px rgba(167,139,250,0.4)', '#110E1F', 'rgba(167,139,250,0.35)', '0.3s', 2)}
+              onMouseEnter={() => setHoveredCard(2)}
+              onMouseLeave={() => setHoveredCard(null)}
+              onClick={(e) => { e.stopPropagation(); window.location.href = '/debate' }}
+            >
+              <div style={{ flex: 1, padding: '2rem 2rem 1rem', display: 'flex', flexDirection: 'column' }}>
+                <span style={{ color: 'rgba(167,139,250,0.7)', fontSize: '12px', letterSpacing: '0.15em', fontWeight: 500 }}>03</span>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="140" height="100" viewBox="0 0 140 100" style={{ opacity: hoveredCard === 2 ? 1 : 0.7, transition: 'opacity 0.3s' }}>
+                    <line x1="70" y1="10" x2="70" y2="90"
+                      stroke="rgba(167,139,250,0.3)" strokeWidth="1"
+                      strokeDasharray="4 4" strokeDashoffset="200"
+                      style={{ animation: 'drawDash 1s ease-out 0.7s forwards' }}
+                    />
+                    <g style={{ animation: 'slideFromLeft 0.6s ease-out 0.3s both' }}>
+                      <circle cx="35" cy="35" r="18" fill="rgba(167,139,250,0.2)" stroke="rgba(167,139,250,0.5)" strokeWidth="1.5" />
+                      <path d="M10,90 Q35,62 60,90" fill="rgba(167,139,250,0.12)" stroke="rgba(167,139,250,0.3)" strokeWidth="1.5" />
+                    </g>
+                    <g style={{ animation: 'slideFromRight 0.6s ease-out 0.5s both' }}>
+                      <circle cx="105" cy="35" r="18" fill="rgba(167,139,250,0.2)" stroke="rgba(167,139,250,0.5)" strokeWidth="1.5" />
+                      <path d="M80,90 Q105,62 130,90" fill="rgba(167,139,250,0.12)" stroke="rgba(167,139,250,0.3)" strokeWidth="1.5" />
+                    </g>
+                  </svg>
+                </div>
+              </div>
+              <div style={{ padding: '1.5rem 2rem 2rem' }}>
+                <p style={{ color: 'white', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>The Arena</p>
+                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px', lineHeight: 1.5, marginBottom: '1.25rem' }}>Pit any two guests against each other</p>
+                <div style={{ color: '#A78BFA', fontSize: '13px', fontWeight: 500 }}>Compare →</div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Footer */}
+          <div style={{ position: 'absolute', bottom: '1.5rem', width: '100%', textAlign: 'center' }}>
+            <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', margin: 0, fontFamily: FONT }}>
+              Transcripts from Lenny Rachitsky&rsquo;s open podcast archive&nbsp;&middot;&nbsp;
+              <a href="https://www.lenny.fm" target="_blank" rel="noopener noreferrer"
+                style={{ color: 'rgba(255,255,255,0.2)', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+                lenny.fm
+              </a>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Results state ── */}
+      {hasResult && (
+        <div
+          className="min-h-screen flex flex-col"
+          style={{ background: '#080C14', animation: 'resultsEnter 0.4s ease-out 0.2s both' }}
+        >
+          <header
+            className="sticky top-0 z-10 backdrop-blur-sm animate-fade-in"
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(8,12,20,0.95)' }}
+          >
+            <div className="mx-auto flex items-center gap-4" style={{ maxWidth: '1100px', padding: '0.75rem 2rem' }}>
               <button onClick={reset} className="flex items-center gap-3 group">
-                <span style={{ fontSize: '20px', fontWeight: 600, color: 'white', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', letterSpacing: '-0.01em' }}>Chorus</span>
+                <span style={{ fontSize: '20px', fontWeight: 600, color: 'white', fontFamily: FONT, letterSpacing: '-0.01em' }}>Chorus</span>
                 <span
                   className="text-xs transition-colors duration-150"
                   style={{ color: 'rgba(255,255,255,0.4)' }}
-                  onMouseEnter={(e) =>
-                    ((e.target as HTMLElement).style.color = 'rgba(255,255,255,0.7)')
-                  }
-                  onMouseLeave={(e) =>
-                    ((e.target as HTMLElement).style.color = 'rgba(255,255,255,0.4)')
-                  }
+                  onMouseEnter={(e) => ((e.target as HTMLElement).style.color = 'rgba(255,255,255,0.7)')}
+                  onMouseLeave={(e) => ((e.target as HTMLElement).style.color = 'rgba(255,255,255,0.4)')}
                 >
                   New question
                 </span>
               </button>
             </div>
           </header>
-        )}
 
-        {/* ── Main ── */}
-        <main
-          className={`flex-1 flex flex-col items-center ${
-            hasResult ? 'justify-start pt-8 pb-24' : 'justify-center py-20'
-          }`}
-        >
-          <div
-            className="w-full mx-auto"
-            style={{ maxWidth: hasResult ? '1100px' : '640px', padding: '0 2rem' }}
-          >
-            {/* Hero (idle state) — centered */}
-            {!hasResult && (
-              <div className="text-center mb-10">
-                <HeroLogo />
-                <p
-                  className="text-sm mt-2.5 font-normal"
-                  style={{ color: 'rgba(255,255,255,0.75)' }}
-                >
-                  Wisdom from 270 of the world&rsquo;s best product minds
-                </p>
+          <main className="flex-1 flex flex-col items-center justify-start pt-8 pb-24">
+            <div className="w-full mx-auto" style={{ maxWidth: '1100px', padding: '0 2rem' }}>
+              <div ref={resultRef}>
+                {loading && <LoadingState />}
+                {!loading && error && <ErrorMessage message={error} />}
+                {!loading && response && (
+                  <AnswerDisplay response={response} onOpenSource={setSelectedSource} />
+                )}
               </div>
-            )}
-
-            {/* Search */}
-            <SearchBar
-              question={question}
-              loading={loading}
-              onChange={setQuestion}
-              onSubmit={() => ask(question)}
-            />
-
-            {/* Bucketed questions — idle only */}
-            {!hasResult && !loading && (
-              <>
-                <BucketedQuestions onSelect={handleChipSelect} />
-                <div className="flex flex-wrap justify-center gap-3" style={{ marginTop: '2rem' }}>
-                  {[
-                    { href: '/mental-models', label: 'Browse Mental Model Library →' },
-                    { href: '/debate', label: 'Guest vs Guest →' },
-                  ].map(({ href, label }) => (
-                    <a
-                      key={href}
-                      href={href}
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid rgba(255,255,255,0.3)',
-                        color: 'rgba(255,255,255,0.6)',
-                        borderRadius: '100px',
-                        padding: '0.6rem 1.5rem',
-                        fontSize: '14px',
-                        textDecoration: 'none',
-                        transition: 'border-color 0.2s, color 0.2s',
-                        display: 'inline-block',
-                      }}
-                      onMouseEnter={(e) => {
-                        const el = e.currentTarget
-                        el.style.borderColor = 'rgba(255,255,255,0.6)'
-                        el.style.color = 'white'
-                      }}
-                      onMouseLeave={(e) => {
-                        const el = e.currentTarget
-                        el.style.borderColor = 'rgba(255,255,255,0.3)'
-                        el.style.color = 'rgba(255,255,255,0.6)'
-                      }}
-                    >
-                      {label}
-                    </a>
-                  ))}
-                </div>
-                <p
-                  style={{
-                    color: 'rgba(255,255,255,0.3)',
-                    fontSize: '12px',
-                    textAlign: 'center',
-                    marginTop: '2rem',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                  }}
-                >
-                  Transcripts sourced from Lenny Rachitsky&rsquo;s open podcast archive&nbsp;&middot;&nbsp;
-                  <a
-                    href="https://www.lenny.fm"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: 'rgba(255,255,255,0.3)',
-                      textDecoration: 'underline',
-                      textDecorationColor: 'rgba(255,255,255,0.2)',
-                    }}
-                  >
-                    lenny.fm
-                  </a>
-                </p>
-              </>
-            )}
-
-            {/* Results area */}
-            <div ref={resultRef}>
-              {loading && <LoadingState />}
-              {!loading && error && <ErrorMessage message={error} />}
-              {!loading && response && (
-                <AnswerDisplay
-                  response={response}
-                  onOpenSource={setSelectedSource}
-                />
-              )}
             </div>
-          </div>
-        </main>
-
-      </div>
+          </main>
+        </div>
+      )}
 
       {/* Guest profile drawer */}
-      <GuestDrawer
-        source={selectedSource}
-        onClose={() => setSelectedSource(null)}
-      />
+      <GuestDrawer source={selectedSource} onClose={() => setSelectedSource(null)} />
     </>
   )
 }
