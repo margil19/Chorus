@@ -1012,9 +1012,11 @@ export default function Home() {
   // ── Card style helper ─────────────────────────────────────────────────────────
 
   const cardStyle = (
-    hoverShadow: string,
     bg: string,
-    borderDefault: string,
+    defaultBorder: string,
+    hoverBorder: string,
+    defaultShadow: string,
+    hoverShadow: string,
     delay: string,
     idx: number,
   ): React.CSSProperties => {
@@ -1027,9 +1029,9 @@ export default function Home() {
       cursor: 'pointer',
       overflow: 'hidden',
       background: bg,
-      border: `1px solid ${borderDefault}`,
-      boxShadow: hovered ? hoverShadow : 'none',
-      transform: hovered ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
+      border: `1px solid ${hovered ? hoverBorder : defaultBorder}`,
+      boxShadow: hovered ? hoverShadow : defaultShadow,
+      transform: hovered ? 'translateY(-6px)' : 'translateY(0)',
       transition: 'box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.4,0,0.2,1), border-color 0.3s ease',
       animation: loading ? `cardsExit 0.35s ease-in forwards` : `cardReveal 0.7s ease-out ${delay} both`,
       display: 'flex',
@@ -1059,7 +1061,7 @@ export default function Home() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: '#080C14',
+            background: '#ffffff',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -1077,23 +1079,23 @@ export default function Home() {
               marginBottom: '3rem',
             }}
           >
-            <h1 style={{ fontSize: '1.25rem', fontWeight: 500, color: 'white', letterSpacing: '0.02em', margin: 0, lineHeight: 1 }}>
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 500, color: '#0a0a0a', letterSpacing: '0.02em', margin: 0, lineHeight: 1 }}>
               Chorus
             </h1>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', marginTop: '0.5rem', marginBottom: 0 }}>
+            <p style={{ color: '#737373', fontSize: '14px', marginTop: '0.5rem', marginBottom: 0 }}>
               270 podcast episodes. One place to think.
             </p>
 
             {guestFilter && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.625rem', marginTop: '1rem' }}>
-                <span style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '100px', padding: '0.3rem 0.875rem', fontSize: '13px', color: 'rgba(255,255,255,0.65)' }}>
+                <span style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '100px', padding: '0.3rem 0.875rem', fontSize: '13px', color: '#404040' }}>
                   Filtering to {guestFilter.guests.length} {guestFilter.domain} guests
                 </span>
                 <button
                   onClick={clearGuestFilter}
-                  style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: '13px', cursor: 'pointer', padding: 0, transition: 'color 0.15s' }}
-                  onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = 'white')}
-                  onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.35)')}
+                  style={{ background: 'transparent', border: 'none', color: '#a3a3a3', fontSize: '13px', cursor: 'pointer', padding: 0, transition: 'color 0.15s' }}
+                  onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#0a0a0a')}
+                  onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#a3a3a3')}
                 >
                   × clear
                 </button>
@@ -1108,13 +1110,13 @@ export default function Home() {
 
             {/* ── CARD 1 — THE BRAIN ── */}
             <div
-              style={cardStyle('0 24px 80px rgba(232,84,58,0.18), 0 0 0 1px rgba(232,84,58,0.4)', '#1C0F0A', 'rgba(232,84,58,0.35)', '0.1s', 0)}
+              style={cardStyle('linear-gradient(145deg, #1C0F0A, #0d0908)', 'rgba(232,84,58,0.35)', 'rgba(232,84,58,0.6)', '0 2px 16px rgba(232,84,58,0.1)', '0 12px 40px rgba(232,84,58,0.2)', '0.1s', 0)}
               onMouseEnter={() => setHoveredCard(0)}
               onMouseLeave={() => setHoveredCard(null)}
               onClick={(e) => { e.stopPropagation(); window.location.href = '/ask' }}
             >
               <div style={{ flex: 1, padding: '2rem 2rem 1rem', display: 'flex', flexDirection: 'column' }}>
-                <span style={{ color: 'rgba(232,84,58,0.7)', fontSize: '12px', letterSpacing: '0.15em', fontWeight: 500 }}>01</span>
+                <span style={{ color: '#E8543A', fontSize: '12px', letterSpacing: '0.15em', fontWeight: 500 }}>01</span>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="160" height="120" viewBox="0 0 160 120" style={{ opacity: hoveredCard === 0 ? 1 : 0.7, transition: 'opacity 0.3s' }}>
                     {([
@@ -1123,13 +1125,13 @@ export default function Home() {
                       [80,45,120,85],[45,25,75,95],
                     ] as [number,number,number,number][]).map(([x1,y1,x2,y2], i) => (
                       <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
-                        stroke="rgba(232,84,58,0.25)" strokeWidth="1"
+                        stroke="rgba(232,84,58,0.2)" strokeWidth="1"
                         strokeDasharray="100"
                         style={{ animation: `drawLine 1.5s ease-out ${0.2 + i * 0.18}s forwards`, opacity: 0 }}
                       />
                     ))}
                     {([[20,60],[45,25],[80,45],[110,20],[140,50],[120,85],[75,95],[35,80]] as [number,number][]).map(([cx,cy], i) => (
-                      <circle key={i} cx={cx} cy={cy} r="3" fill="rgba(232,84,58,0.8)"
+                      <circle key={i} cx={cx} cy={cy} r="3" fill="rgba(232,84,58,0.7)"
                         style={{ animation: `pulse 2.5s ease-in-out ${i * 0.3}s infinite` }}
                       />
                     ))}
@@ -1148,13 +1150,13 @@ export default function Home() {
 
             {/* ── CARD 2 — THE LIBRARY ── */}
             <div
-              style={cardStyle('0 24px 80px rgba(56,189,248,0.18), 0 0 0 1px rgba(56,189,248,0.4)', '#081828', 'rgba(56,189,248,0.35)', '0.2s', 1)}
+              style={cardStyle('linear-gradient(145deg, #081828, #060e18)', 'rgba(56,189,248,0.35)', 'rgba(56,189,248,0.6)', '0 2px 16px rgba(56,189,248,0.1)', '0 12px 40px rgba(56,189,248,0.2)', '0.2s', 1)}
               onMouseEnter={() => setHoveredCard(1)}
               onMouseLeave={() => setHoveredCard(null)}
               onClick={(e) => { e.stopPropagation(); window.location.href = '/mental-models' }}
             >
               <div style={{ flex: 1, padding: '2rem 2rem 1rem', display: 'flex', flexDirection: 'column' }}>
-                <span style={{ color: 'rgba(56,189,248,0.7)', fontSize: '12px', letterSpacing: '0.15em', fontWeight: 500 }}>02</span>
+                <span style={{ color: '#38BDF8', fontSize: '12px', letterSpacing: '0.15em', fontWeight: 500 }}>02</span>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="120" height="100" viewBox="0 0 120 100" style={{ opacity: hoveredCard === 1 ? 1 : 0.7, transition: 'opacity 0.3s' }}>
                     {Array.from({ length: 20 }).map((_, i) => {
@@ -1163,8 +1165,8 @@ export default function Home() {
                       const highlighted = [1, 4, 7, 11, 14, 18].includes(i)
                       return (
                         <rect key={i} x={col * 24 + 6} y={row * 20 + 5} width="16" height="16" rx="4"
-                          fill={highlighted ? 'rgba(56,189,248,0.45)' : 'rgba(56,189,248,0.15)'}
-                          stroke="rgba(56,189,248,0.35)" strokeWidth="1"
+                          fill={highlighted ? 'rgba(56,189,248,0.4)' : 'rgba(56,189,248,0.12)'}
+                          stroke="rgba(56,189,248,0.3)" strokeWidth="1"
                           style={{ animation: `gridIn 0.3s ease-out ${i * 0.05}s both` }}
                         />
                       )
@@ -1181,13 +1183,13 @@ export default function Home() {
 
             {/* ── CARD 3 — THE ARENA ── */}
             <div
-              style={cardStyle('0 24px 80px rgba(167,139,250,0.18), 0 0 0 1px rgba(167,139,250,0.4)', '#110E1F', 'rgba(167,139,250,0.35)', '0.3s', 2)}
+              style={cardStyle('linear-gradient(145deg, #110E1F, #0b0914)', 'rgba(167,139,250,0.35)', 'rgba(167,139,250,0.6)', '0 2px 16px rgba(167,139,250,0.1)', '0 12px 40px rgba(167,139,250,0.2)', '0.3s', 2)}
               onMouseEnter={() => setHoveredCard(2)}
               onMouseLeave={() => setHoveredCard(null)}
               onClick={(e) => { e.stopPropagation(); window.location.href = '/debate' }}
             >
               <div style={{ flex: 1, padding: '2rem 2rem 1rem', display: 'flex', flexDirection: 'column' }}>
-                <span style={{ color: 'rgba(167,139,250,0.7)', fontSize: '12px', letterSpacing: '0.15em', fontWeight: 500 }}>03</span>
+                <span style={{ color: '#A78BFA', fontSize: '12px', letterSpacing: '0.15em', fontWeight: 500 }}>03</span>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="140" height="100" viewBox="0 0 140 100" style={{ opacity: hoveredCard === 2 ? 1 : 0.7, transition: 'opacity 0.3s' }}>
                     <line x1="70" y1="10" x2="70" y2="90"
@@ -1196,11 +1198,11 @@ export default function Home() {
                       style={{ animation: 'drawDash 1s ease-out 0.7s forwards' }}
                     />
                     <g style={{ animation: 'slideFromLeft 0.6s ease-out 0.3s both' }}>
-                      <circle cx="35" cy="35" r="18" fill="rgba(167,139,250,0.2)" stroke="rgba(167,139,250,0.5)" strokeWidth="1.5" />
+                      <circle cx="35" cy="35" r="18" fill="rgba(167,139,250,0.15)" stroke="rgba(167,139,250,0.5)" strokeWidth="1.5" />
                       <path d="M10,90 Q35,62 60,90" fill="rgba(167,139,250,0.12)" stroke="rgba(167,139,250,0.3)" strokeWidth="1.5" />
                     </g>
                     <g style={{ animation: 'slideFromRight 0.6s ease-out 0.5s both' }}>
-                      <circle cx="105" cy="35" r="18" fill="rgba(167,139,250,0.2)" stroke="rgba(167,139,250,0.5)" strokeWidth="1.5" />
+                      <circle cx="105" cy="35" r="18" fill="rgba(167,139,250,0.15)" stroke="rgba(167,139,250,0.5)" strokeWidth="1.5" />
                       <path d="M80,90 Q105,62 130,90" fill="rgba(167,139,250,0.12)" stroke="rgba(167,139,250,0.3)" strokeWidth="1.5" />
                     </g>
                   </svg>
@@ -1216,13 +1218,9 @@ export default function Home() {
           </div>
 
           {/* Footer */}
-          <div style={{ position: 'absolute', bottom: '1.5rem', width: '100%', textAlign: 'center' }}>
-            <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', margin: 0, fontFamily: FONT }}>
-              Transcripts from Lenny Rachitsky&rsquo;s open podcast archive&nbsp;&middot;&nbsp;
-              <a href="https://www.lenny.fm" target="_blank" rel="noopener noreferrer"
-                style={{ color: 'rgba(255,255,255,0.2)', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
-                lenny.fm
-              </a>
+          <div style={{ position: 'absolute', bottom: '1.5rem', width: '100%' }}>
+            <p style={{ color: '#a3a3a3', fontSize: '12px', margin: '0 auto', fontFamily: FONT, textAlign: 'center', maxWidth: '400px', lineHeight: 1.6 }}>
+              A deep thank you to Lenny Rachitsky for open-sourcing his podcast transcripts and making this possible.
             </p>
           </div>
         </div>

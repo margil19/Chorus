@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import FeatureNav from '../components/FeatureNav'
 import type { DebateApiResponse, DebateSource } from '../api/debate/route'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const LABEL_STYLE: React.CSSProperties = {
-  color: 'rgba(255,255,255,0.4)',
+  color: 'rgba(167,139,250,0.7)',
   fontSize: '11px',
   fontWeight: 600,
   letterSpacing: '0.1em',
@@ -54,10 +55,10 @@ function GuestInput({
     <div style={{ flex: 1, minWidth: 0 }}>
       <p
         style={{
-          color: 'rgba(255,255,255,0.5)',
-          fontSize: '12px',
+          color: '#A78BFA',
+          fontSize: '11px',
           fontWeight: 600,
-          letterSpacing: '0.05em',
+          letterSpacing: '0.08em',
           textTransform: 'uppercase',
           marginBottom: '0.5rem',
           fontFamily: FONT,
@@ -76,7 +77,7 @@ function GuestInput({
               left: '1rem',
               top: '50%',
               transform: 'translateY(-50%)',
-              color: 'rgba(255,255,255,0.55)',
+              color: '#A78BFA',
               fontSize: '14px',
               pointerEvents: 'none',
               lineHeight: 1,
@@ -94,22 +95,24 @@ function GuestInput({
           onChange={(e) => onChange(e.target.value)}
           onFocus={(e) => {
             setIsFocused(true)
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'
+            e.currentTarget.style.borderColor = '#A78BFA'
+            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(167,139,250,0.08)'
           }}
           onBlur={(e) => {
             setTimeout(() => setIsFocused(false), 150)
             e.currentTarget.style.borderColor = isSelected
-              ? 'rgba(255,255,255,0.3)'
-              : 'rgba(255,255,255,0.12)'
+              ? 'rgba(167,139,250,0.4)'
+              : 'rgba(167,139,250,0.2)'
+            e.currentTarget.style.boxShadow = 'none'
           }}
           placeholder="Type a guest name…"
           style={{
             width: '100%',
-            background: 'rgba(255,255,255,0.06)',
-            border: `1px solid ${isSelected ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.12)'}`,
+            background: '#ffffff',
+            border: `1px solid ${isSelected ? 'rgba(167,139,250,0.4)' : 'rgba(167,139,250,0.2)'}`,
             borderRadius: '12px',
             padding: isSelected ? '0.875rem 2.5rem 0.875rem 2.25rem' : '0.875rem 1rem',
-            color: 'white',
+            color: '#0a0a0a',
             fontSize: '15px',
             outline: 'none',
             fontFamily: FONT,
@@ -127,7 +130,7 @@ function GuestInput({
               right: '0.75rem',
               top: '50%',
               transform: 'translateY(-50%)',
-              color: 'rgba(255,255,255,0.4)',
+              color: 'rgba(0,0,0,0.3)',
               fontSize: '16px',
               cursor: 'pointer',
               background: 'none',
@@ -137,11 +140,11 @@ function GuestInput({
               zIndex: 1,
             }}
             onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.color = 'white')
+              ((e.currentTarget as HTMLButtonElement).style.color = '#A78BFA')
             }
             onMouseLeave={(e) =>
               ((e.currentTarget as HTMLButtonElement).style.color =
-                'rgba(255,255,255,0.4)')
+                'rgba(0,0,0,0.3)')
             }
           >
             ×
@@ -156,12 +159,13 @@ function GuestInput({
               top: 'calc(100% + 4px)',
               left: 0,
               right: 0,
-              background: '#1a1a1a',
-              border: '1px solid rgba(255,255,255,0.12)',
+              background: '#ffffff',
+              border: '1px solid rgba(167,139,250,0.2)',
               borderRadius: '8px',
               maxHeight: '200px',
               overflowY: 'auto',
               zIndex: 50,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
             }}
           >
             {filtered.map((g) => (
@@ -174,14 +178,14 @@ function GuestInput({
                 }}
                 style={{
                   padding: '0.75rem 1rem',
-                  color: 'white',
+                  color: '#0a0a0a',
                   fontSize: '14px',
                   cursor: 'pointer',
                   fontFamily: FONT,
                 }}
                 onMouseEnter={(e) => {
                   ;(e.currentTarget as HTMLDivElement).style.background =
-                    'rgba(255,255,255,0.08)'
+                    'rgba(167,139,250,0.06)'
                 }}
                 onMouseLeave={(e) => {
                   ;(e.currentTarget as HTMLDivElement).style.background = 'transparent'
@@ -311,7 +315,7 @@ function PositionCard({
             height: '32px',
             minWidth: '32px',
             borderRadius: '100%',
-            background: '#0a0a0a',
+            background: '#A78BFA',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -339,19 +343,21 @@ function PositionCard({
 
 // ── Dark section card ─────────────────────────────────────────────────────────
 
-function DarkCard({ label, text }: { label: string; text: string }) {
+function DarkCard({ label, text, accentBorder }: { label: string; text: string; accentBorder?: boolean }) {
   return (
     <div
+      className="rounded-2xl overflow-hidden flex"
       style={{
         background: '#111111',
         border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: '16px',
-        padding: '1.5rem',
         fontFamily: FONT,
       }}
     >
-      <p style={LABEL_STYLE}>{label}</p>
-      <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '15px', lineHeight: 1.7 }}>{text}</p>
+      {accentBorder && <div style={{ width: '3px', background: '#A78BFA', flexShrink: 0 }} />}
+      <div style={{ padding: '1.5rem', flex: 1 }}>
+        <p style={LABEL_STYLE}>{label}</p>
+        <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '15px', lineHeight: 1.7 }}>{text}</p>
+      </div>
     </div>
   )
 }
@@ -364,7 +370,7 @@ function DebateShimmer() {
       <p
         style={{
           textAlign: 'center',
-          color: 'rgba(255,255,255,0.5)',
+          color: '#737373',
           fontSize: '14px',
           fontFamily: FONT,
           paddingBottom: '0.5rem',
@@ -397,9 +403,9 @@ function DebateShimmer() {
         className="rounded-2xl p-6 space-y-2"
         style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}
       >
-        <div className="h-2 animate-shimmer-light rounded-full w-1/4" style={{ opacity: 0.3 }} />
-        <div className="h-3 animate-shimmer-light rounded-full" style={{ opacity: 0.15 }} />
-        <div className="h-3 animate-shimmer-light rounded-full w-5/6" style={{ opacity: 0.15 }} />
+        <div className="h-2 animate-shimmer rounded-full w-1/4" style={{ opacity: 0.3 }} />
+        <div className="h-3 animate-shimmer rounded-full" style={{ opacity: 0.15 }} />
+        <div className="h-3 animate-shimmer rounded-full w-5/6" style={{ opacity: 0.15 }} />
       </div>
 
       {/* Positions shimmer */}
@@ -431,9 +437,9 @@ function DebateShimmer() {
           className="rounded-2xl p-6 space-y-2"
           style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}
         >
-          <div className="h-2 animate-shimmer-light rounded-full w-1/3" style={{ opacity: 0.3 }} />
-          <div className="h-3 animate-shimmer-light rounded-full" style={{ opacity: 0.15 }} />
-          <div className="h-3 animate-shimmer-light rounded-full w-4/5" style={{ opacity: 0.15 }} />
+          <div className="h-2 animate-shimmer rounded-full w-1/3" style={{ opacity: 0.3 }} />
+          <div className="h-3 animate-shimmer rounded-full" style={{ opacity: 0.15 }} />
+          <div className="h-3 animate-shimmer rounded-full w-4/5" style={{ opacity: 0.15 }} />
         </div>
       ))}
     </div>
@@ -446,14 +452,14 @@ function ErrorCard({ message }: { message: string }) {
   return (
     <div
       style={{
-        background: '#111111',
-        border: '1px solid rgba(255,80,80,0.2)',
+        background: '#ffffff',
+        border: '1px solid rgba(220,80,80,0.2)',
         borderRadius: '16px',
         padding: '1.25rem 1.5rem',
         fontFamily: FONT,
       }}
     >
-      <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>{message}</p>
+      <p style={{ color: '#737373', fontSize: '14px' }}>{message}</p>
     </div>
   )
 }
@@ -470,7 +476,7 @@ function DebateResults({ result }: { result: DebateApiResponse }) {
       </div>
 
       {/* Where they agree */}
-      <DarkCard label="Where They Agree" text={result.agreement} />
+      <DarkCard label="Where They Agree" text={result.agreement} accentBorder />
 
       {/* Positions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -489,10 +495,10 @@ function DebateResults({ result }: { result: DebateApiResponse }) {
       {/* Core disagreement */}
       <DarkCard label="The Sharpest Disagreement" text={result.core_disagreement} />
 
-      {/* Bottom line — uses gradient like synthesis card */}
+      {/* Bottom line */}
       <div
         style={{
-          background: 'linear-gradient(135deg, #0f0f0f 0%, #181818 100%)',
+          background: '#111111',
           border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: '16px',
           padding: '1.5rem',
@@ -599,48 +605,32 @@ export default function DebatePage() {
   const hasResult = Boolean(result || error || loading)
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0a', fontFamily: FONT }}>
+    <div style={{ minHeight: '100vh', background: '#ffffff', fontFamily: FONT }}>
 
       {/* ── Sticky header ── */}
       <header
         style={{
+          height: '56px',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 2rem',
+          background: 'rgba(255,255,255,0.95)',
+          borderBottom: '1px solid rgba(167,139,250,0.15)',
           position: 'sticky',
           top: 0,
           zIndex: 10,
-          background: 'rgba(10,10,10,0.95)',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
-          backdropFilter: 'blur(8px)',
+          backdropFilter: 'blur(12px)',
         }}
       >
-        <div
-          style={{
-            maxWidth: '860px',
-            margin: '0 auto',
-            padding: '0.875rem 2rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <Link href="/" style={{ lineHeight: 1, display: 'flex' }}>
-            <span style={{ fontSize: '20px', fontWeight: 600, color: 'white', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', letterSpacing: '-0.01em' }}>Chorus</span>
-          </Link>
-          <Link
-            href="/"
-            style={{
-              color: 'rgba(255,255,255,0.5)',
-              fontSize: '14px',
-              textDecoration: 'none',
-              transition: 'color 0.15s',
-            }}
-            onMouseEnter={(e) => ((e.target as HTMLElement).style.color = 'white')}
-            onMouseLeave={(e) =>
-              ((e.target as HTMLElement).style.color = 'rgba(255,255,255,0.5)')
-            }
-          >
-            ← Ask a question
-          </Link>
-        </div>
+        <Link href="/" style={{
+          color: '#0a0a0a',
+          fontWeight: '500',
+          fontSize: '15px',
+          textDecoration: 'none',
+        }}>
+          Chorus
+        </Link>
+        <FeatureNav currentFeature="arena" />
       </header>
 
       {/* ── Main ── */}
@@ -651,7 +641,7 @@ export default function DebatePage() {
           <div style={{ marginBottom: '2.5rem', textAlign: 'center' }}>
             <h1
               style={{
-                color: 'white',
+                color: '#0a0a0a',
                 fontSize: '32px',
                 fontWeight: 700,
                 lineHeight: 1.2,
@@ -660,7 +650,7 @@ export default function DebatePage() {
             >
               Guest vs Guest
             </h1>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '16px', lineHeight: 1.5 }}>
+            <p style={{ color: '#737373', fontSize: '16px', lineHeight: 1.5 }}>
               See where the experts agree — and where they don&rsquo;t
             </p>
           </div>
@@ -690,7 +680,7 @@ export default function DebatePage() {
             {topicsLoading ? (
               <p
                 style={{
-                  color: 'rgba(255,255,255,0.4)',
+                  color: '#737373',
                   fontSize: '13px',
                   fontFamily: FONT,
                   marginBottom: '0.75rem',
@@ -701,7 +691,7 @@ export default function DebatePage() {
             ) : (
               <p
                 style={{
-                  color: 'rgba(255,255,255,0.4)',
+                  color: '#737373',
                   fontSize: '11px',
                   fontWeight: 600,
                   letterSpacing: '0.1em',
@@ -723,9 +713,9 @@ export default function DebatePage() {
                       key={topic}
                       onClick={() => setSelectedTopic(active ? '' : topic)}
                       style={{
-                        background: active ? 'white' : 'rgba(255,255,255,0.08)',
-                        color: active ? '#0a0a0a' : 'rgba(255,255,255,0.75)',
-                        border: active ? '1px solid white' : '1px solid rgba(255,255,255,0.12)',
+                        background: active ? 'rgba(167,139,250,0.08)' : 'transparent',
+                        color: active ? '#0a0a0a' : '#404040',
+                        border: active ? '1px solid rgba(167,139,250,0.4)' : '1px solid rgba(167,139,250,0.2)',
                         borderRadius: '100px',
                         padding: '0.45rem 1rem',
                         fontSize: '13px',
@@ -752,8 +742,8 @@ export default function DebatePage() {
               onClick={handleDebate}
               disabled={!canDebate}
               style={{
-                background: 'white',
-                color: '#0a0a0a',
+                background: '#A78BFA',
+                color: 'white',
                 border: 'none',
                 borderRadius: '12px',
                 padding: '0.875rem 2rem',
@@ -762,8 +752,10 @@ export default function DebatePage() {
                 cursor: canDebate ? 'pointer' : 'not-allowed',
                 opacity: canDebate ? 1 : 0.4,
                 fontFamily: FONT,
-                transition: 'opacity 0.15s',
+                transition: 'background 0.15s, opacity 0.15s',
               }}
+              onMouseEnter={(e) => { if (canDebate) (e.currentTarget as HTMLButtonElement).style.background = '#9370f5' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#A78BFA' }}
             >
               Debate
             </button>

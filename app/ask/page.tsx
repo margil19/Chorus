@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
+import FeatureNav from '../components/FeatureNav'
 import type {
   AskApiResponse,
   AnswerSection,
@@ -97,7 +98,7 @@ function extractSeconds(url: string): number {
 // ── Shared label style ────────────────────────────────────────────────────────
 
 const SECTION_LABEL_STYLE: React.CSSProperties = {
-  color: 'rgba(255,255,255,0.4)',
+  color: 'rgba(232,84,58,0.7)',
   fontSize: '11px',
   fontWeight: 600,
   letterSpacing: '0.1em',
@@ -127,8 +128,8 @@ function XIcon() {
 
 function SynthesisCard({ sections, bottomLine }: { sections: AnswerSection[]; bottomLine: string }) {
   return (
-    <div className="animate-fade-in rounded-3xl overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #0f0f0f 0%, #181818 100%)' }}>
+    <div className="animate-fade-in overflow-hidden"
+      style={{ background: 'linear-gradient(145deg, #1C0F0A, #0d0908)', border: '1px solid rgba(232,84,58,0.2)', borderRadius: '24px' }}>
       <div className="px-8 pt-6 pb-7">
         <p style={{ ...SECTION_LABEL_STYLE, marginBottom: '1.25rem' }}>Synthesis</p>
         <div className="space-y-5">
@@ -187,7 +188,7 @@ function VoiceCard({
           {voice.summary}
         </p>
         <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded) }}
-          className="transition-colors duration-150" style={{ fontSize: '13px', color: '#737373' }}>
+          className="transition-colors duration-150" style={{ fontSize: '13px', color: '#E8543A' }}>
           {expanded ? 'Show less' : 'Read more →'}
         </button>
       </div>
@@ -201,8 +202,11 @@ function VoiceCard({
       )}
       {source?.video_id && (
         <button onClick={(e) => { e.stopPropagation(); setActiveClip(showClip ? null : voice.guest) }}
-          className="inline-flex items-center gap-1.5 bg-white hover:bg-[rgba(0,0,0,0.04)] text-[#0a0a0a] rounded-[100px] transition-colors duration-200 self-start"
-          style={{ border: '1px solid rgba(0,0,0,0.12)', padding: '0.3rem 0.9rem', fontSize: '12px', fontWeight: 500 }}>
+          className="inline-flex items-center gap-1.5 rounded-[100px] transition-all duration-200 self-start"
+          style={{ background: 'white', border: '1px solid rgba(0,0,0,0.12)', color: '#0a0a0a', padding: '0.3rem 0.9rem', fontSize: '12px', fontWeight: 500 }}
+          onMouseEnter={(e) => { const el = e.currentTarget as HTMLButtonElement; el.style.background = '#E8543A'; el.style.color = 'white'; el.style.borderColor = '#E8543A' }}
+          onMouseLeave={(e) => { const el = e.currentTarget as HTMLButtonElement; el.style.background = 'white'; el.style.color = '#0a0a0a'; el.style.borderColor = 'rgba(0,0,0,0.12)' }}
+        >
           {showClip ? '✕ Hide clip' : '▶ Watch clip'}
         </button>
       )}
@@ -238,8 +242,7 @@ function ConsensusContrarianRow({ consensus, contrarian }: { consensus: string |
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in-delay">
       {consensus && (
-        <div className="rounded-2xl overflow-hidden flex" style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div className="w-[3px] shrink-0" style={{ background: 'rgba(255,255,255,0.25)' }} />
+        <div style={{ background: '#1a0e0b', borderLeft: '3px solid #E8543A', borderRadius: 0, overflow: 'hidden' }}>
           <div className="px-5 py-4">
             <p style={{ ...SECTION_LABEL_STYLE, marginBottom: '0.5rem' }}>Where guests agree</p>
             <p className="text-sm leading-6" style={{ color: 'rgba(255,255,255,0.8)' }}>{stripBold(consensus)}</p>
@@ -247,8 +250,7 @@ function ConsensusContrarianRow({ consensus, contrarian }: { consensus: string |
         </div>
       )}
       {contrarian && (
-        <div className="rounded-2xl overflow-hidden flex" style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div className="w-[3px] shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }} />
+        <div style={{ background: '#1a0e0b', borderLeft: '3px solid rgba(255,255,255,0.15)', borderRadius: 0, overflow: 'hidden' }}>
           <div className="px-5 py-4">
             <p style={{ ...SECTION_LABEL_STYLE, marginBottom: '0.5rem' }}>Contrarian take</p>
             <p className="text-sm leading-6" style={{ color: 'rgba(255,255,255,0.8)' }}>{stripBold(contrarian)}</p>
@@ -332,7 +334,7 @@ function GuestDrawer({ source, onClose }: { source: Source | null; onClose: () =
                 <p style={{ ...SECTION_LABEL_STYLE, marginBottom: '0.75rem' }}>Mental models</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                   {source.mental_models.map((model, i) => (
-                    <span key={i} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '100px', padding: '0.4rem 0.9rem', fontSize: '13px' }}>
+                    <span key={i} style={{ background: 'rgba(232,84,58,0.06)', border: '1px solid rgba(232,84,58,0.3)', color: 'rgba(255,255,255,0.8)', borderRadius: '100px', padding: '0.4rem 0.9rem', fontSize: '13px' }}>
                       {model}
                     </span>
                   ))}
@@ -360,8 +362,10 @@ function GuestDrawer({ source, onClose }: { source: Source | null; onClose: () =
         </div>
         <div style={{ padding: '1.5rem 2rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <a href={source?.youtube_url} target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full hover:bg-[rgba(255,255,255,0.9)] transition-colors duration-150"
-            style={{ background: 'white', color: '#0a0a0a', fontWeight: 600, fontSize: '14px', borderRadius: '100px', padding: '0.875rem' }}>
+            className="flex items-center justify-center gap-2 w-full transition-colors duration-150"
+            style={{ background: '#E8543A', color: 'white', fontWeight: 600, fontSize: '14px', borderRadius: '100px', padding: '0.875rem' }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = '#d14a30')}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = '#E8543A')}>
             <YouTubeIcon className="w-4 h-4" />
             Watch Episode
           </a>
@@ -380,7 +384,7 @@ function LoadingState() {
     return () => clearInterval(t)
   }, [])
   return (
-    <div style={{ textAlign: 'center', padding: '4rem 0', color: 'rgba(255,255,255,0.4)', fontSize: '14px', fontFamily: FONT }}>
+    <div style={{ textAlign: 'center', padding: '4rem 0', color: '#737373', fontSize: '14px', fontFamily: FONT }}>
       Thinking across 270 episodes{'.'.repeat(dots)}
     </div>
   )
@@ -461,29 +465,51 @@ export default function AskPage() {
         }
       `}</style>
 
-      <div className="min-h-screen flex flex-col" style={{ background: '#080C14', fontFamily: FONT }}>
+      <div className="min-h-screen flex flex-col" style={{ background: '#ffffff', fontFamily: FONT }}>
 
         {/* ── Sticky header ── */}
         <header style={{
-          position: 'sticky', top: 0, zIndex: 10,
-          background: 'rgba(8,12,20,0.95)', backdropFilter: 'blur(8px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          height: '56px', display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between', padding: '0 2rem',
+          height: '56px',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 2rem',
+          background: 'rgba(255,255,255,0.95)',
+          borderBottom: '1px solid rgba(232,84,58,0.15)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          backdropFilter: 'blur(12px)',
         }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <span style={{ fontSize: '1.1rem', fontWeight: 500, color: 'white', letterSpacing: '0.02em' }}>Chorus</span>
+          <Link href="/" style={{
+            color: '#0a0a0a',
+            fontWeight: '500',
+            fontSize: '15px',
+            textDecoration: 'none',
+          }}>
+            Chorus
           </Link>
           {hasResult && (
             <button
               onClick={reset}
-              style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: '14px', cursor: 'pointer', fontFamily: FONT, transition: 'color 0.15s' }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = 'white')}
-              onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.45)')}
+              style={{
+                marginLeft: '1rem',
+                background: 'transparent',
+                border: '1px solid rgba(232,84,58,0.3)',
+                color: '#E8543A',
+                borderRadius: '100px',
+                padding: '0.4rem 1rem',
+                fontSize: '13px',
+                cursor: 'pointer',
+                fontFamily: FONT,
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'rgba(232,84,58,0.06)')}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'transparent')}
             >
               ← New question
             </button>
           )}
+          <FeatureNav currentFeature="brain" />
         </header>
 
         {/* ── Main ── */}
@@ -499,10 +525,10 @@ export default function AskPage() {
               }}
             >
               {/* Title */}
-              <h1 style={{ color: 'white', fontSize: '2rem', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: '0.5rem', textAlign: 'center' }}>
+              <h1 style={{ color: '#0a0a0a', fontSize: '2rem', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: '0.5rem', textAlign: 'center' }}>
                 The Brain
               </h1>
-              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '15px', marginBottom: '2.5rem', textAlign: 'center' }}>
+              <p style={{ color: '#737373', fontSize: '15px', marginBottom: '2.5rem', textAlign: 'center' }}>
                 Ask anything across 270 episodes
               </p>
 
@@ -516,14 +542,20 @@ export default function AskPage() {
                   placeholder="Ask about product, growth, leadership..."
                   autoFocus
                   style={{
-                    width: '100%', background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.12)', borderRadius: '100px',
-                    padding: '1rem 8rem 1rem 1.5rem', color: 'white', fontSize: '15px',
+                    width: '100%', background: '#ffffff',
+                    border: '1px solid rgba(232,84,58,0.25)', borderRadius: '100px',
+                    padding: '1rem 8rem 1rem 1.5rem', color: '#0a0a0a', fontSize: '15px',
                     outline: 'none', fontFamily: FONT, boxSizing: 'border-box',
-                    transition: 'border-color 0.15s',
+                    transition: 'border-color 0.15s, box-shadow 0.15s',
                   }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(232,84,58,0.5)' }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)' }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#E8543A'
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(232,84,58,0.08)'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(232,84,58,0.25)'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
                 />
                 <button
                   onClick={() => ask(question)}
@@ -544,7 +576,7 @@ export default function AskPage() {
 
               {/* Bucket section */}
               <div style={{ width: '100%', marginTop: '2rem', animation: 'askFadeUp 0.5s ease-out 0.25s both' }}>
-                <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem', textAlign: 'center' }}>
+                <p style={{ color: '#737373', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem', textAlign: 'center' }}>
                   Or explore by topic
                 </p>
 
@@ -557,9 +589,9 @@ export default function AskPage() {
                         key={b.label}
                         onClick={() => setSelectedBucket(active ? null : i)}
                         style={{
-                          background: active ? 'rgba(232,84,58,0.15)' : 'rgba(232,84,58,0.06)',
-                          border: `1px solid ${active ? 'rgba(232,84,58,0.4)' : 'rgba(232,84,58,0.15)'}`,
-                          color: active ? 'white' : 'rgba(255,255,255,0.6)',
+                          background: active ? 'rgba(232,84,58,0.08)' : 'transparent',
+                          border: `1px solid ${active ? 'rgba(232,84,58,0.4)' : 'rgba(232,84,58,0.2)'}`,
+                          color: active ? '#0a0a0a' : '#737373',
                           borderRadius: '100px', padding: '0.5rem 1.1rem',
                           fontSize: '13px', cursor: 'pointer', fontFamily: FONT,
                           transition: 'all 0.15s',
@@ -579,14 +611,14 @@ export default function AskPage() {
                         key={q}
                         onClick={() => ask(q, true)}
                         style={{
-                          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                          background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.08)',
                           borderRadius: '12px', padding: '0.875rem 1.25rem',
-                          color: 'rgba(255,255,255,0.75)', fontSize: '14px',
+                          color: '#404040', fontSize: '14px',
                           textAlign: 'left', width: '100%', cursor: 'pointer',
                           fontFamily: FONT, transition: 'all 0.15s',
                         }}
-                        onMouseEnter={(e) => { const el = e.currentTarget; el.style.background = 'rgba(255,255,255,0.06)'; el.style.borderColor = 'rgba(232,84,58,0.25)' }}
-                        onMouseLeave={(e) => { const el = e.currentTarget; el.style.background = 'rgba(255,255,255,0.03)'; el.style.borderColor = 'rgba(255,255,255,0.08)' }}
+                        onMouseEnter={(e) => { const el = e.currentTarget; el.style.background = 'rgba(232,84,58,0.04)'; el.style.borderColor = 'rgba(232,84,58,0.25)' }}
+                        onMouseLeave={(e) => { const el = e.currentTarget; el.style.background = 'rgba(0,0,0,0.02)'; el.style.borderColor = 'rgba(0,0,0,0.08)' }}
                       >
                         {q}
                       </button>

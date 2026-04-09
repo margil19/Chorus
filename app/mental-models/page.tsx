@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import FeatureNav from '../components/FeatureNav'
 import type { MentalModel, MentalModelsApiResponse } from '../api/mental-models/route'
 import type { ModelDetail } from '../api/mental-model-detail/route'
 
@@ -88,7 +89,7 @@ function ModeToggle({
   onChange: (m: Mode) => void
 }) {
   return (
-    <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+    <div style={{ display: 'flex', borderBottom: '1px solid rgba(56,189,248,0.15)' }}>
       {(['situation', 'guest'] as const).map((m) => {
         const active = mode === m
         return (
@@ -103,8 +104,8 @@ function ModeToggle({
               fontFamily: FONT,
               background: 'transparent',
               border: 'none',
-              borderBottom: active ? '2px solid white' : '2px solid transparent',
-              color: active ? 'white' : 'rgba(255,255,255,0.4)',
+              borderBottom: active ? '2px solid #38BDF8' : '2px solid transparent',
+              color: active ? '#38BDF8' : '#737373',
               fontWeight: active ? 500 : 400,
               cursor: 'pointer',
               transition: 'color 0.15s',
@@ -137,13 +138,13 @@ function ListItem({
       onMouseLeave={() => setHovered(false)}
       style={{
         padding: '0.875rem 1rem',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        borderLeft: active ? '2px solid white' : '2px solid transparent',
+        borderBottom: '1px solid rgba(0,0,0,0.05)',
+        borderLeft: active ? '2px solid #38BDF8' : '2px solid transparent',
         cursor: 'pointer',
         background: active
-          ? 'rgba(255,255,255,0.08)'
+          ? 'rgba(56,189,248,0.06)'
           : hovered
-          ? 'rgba(255,255,255,0.05)'
+          ? 'rgba(56,189,248,0.04)'
           : 'transparent',
         transition: 'background 0.1s',
         fontFamily: FONT,
@@ -153,7 +154,7 @@ function ListItem({
         style={{
           fontSize: '14px',
           fontWeight: active ? 500 : 400,
-          color: active ? 'white' : 'rgba(255,255,255,0.85)',
+          color: '#0a0a0a',
           lineHeight: 1.4,
           display: '-webkit-box',
           WebkitLineClamp: 2,
@@ -167,7 +168,7 @@ function ListItem({
       <p
         style={{
           fontSize: '12px',
-          color: 'rgba(255,255,255,0.35)',
+          color: '#737373',
           marginTop: '2px',
           margin: '2px 0 0',
         }}
@@ -202,13 +203,13 @@ function GuestListItem({
         alignItems: 'center',
         gap: '0.75rem',
         padding: '0.875rem 1rem',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        borderLeft: active ? '2px solid white' : '2px solid transparent',
+        borderBottom: '1px solid rgba(0,0,0,0.05)',
+        borderLeft: active ? '2px solid #38BDF8' : '2px solid transparent',
         cursor: 'pointer',
         background: active
-          ? 'rgba(255,255,255,0.08)'
+          ? 'rgba(56,189,248,0.06)'
           : hovered
-          ? 'rgba(255,255,255,0.05)'
+          ? 'rgba(56,189,248,0.04)'
           : 'transparent',
         transition: 'background 0.1s',
         fontFamily: FONT,
@@ -220,7 +221,7 @@ function GuestListItem({
           height: '32px',
           minWidth: '32px',
           borderRadius: '100%',
-          background: '#1a1a1a',
+          background: '#38BDF8',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -236,7 +237,7 @@ function GuestListItem({
           style={{
             fontSize: '14px',
             fontWeight: active ? 500 : 400,
-            color: active ? 'white' : 'rgba(255,255,255,0.85)',
+            color: '#0a0a0a',
             lineHeight: 1.4,
             margin: 0,
             overflow: 'hidden',
@@ -249,7 +250,7 @@ function GuestListItem({
         <p
           style={{
             fontSize: '12px',
-            color: 'rgba(255,255,255,0.35)',
+            color: '#737373',
             margin: '2px 0 0',
           }}
         >
@@ -291,15 +292,15 @@ function ModelDetailPanel({
           style={{
             background: 'transparent',
             border: 'none',
-            color: 'rgba(255,255,255,0.5)',
+            color: '#737373',
             fontSize: '14px',
             cursor: 'pointer',
             padding: '0 0 1.5rem 0',
             fontFamily: FONT,
           }}
-          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = 'white')}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#0a0a0a')}
           onMouseLeave={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.5)')
+            ((e.currentTarget as HTMLButtonElement).style.color = '#737373')
           }
         >
           {backLabel}
@@ -310,7 +311,7 @@ function ModelDetailPanel({
         style={{
           fontSize: '28px',
           fontWeight: 600,
-          color: 'white',
+          color: '#0a0a0a',
           lineHeight: 1.3,
           marginBottom: '0.5rem',
           marginTop: 0,
@@ -321,7 +322,7 @@ function ModelDetailPanel({
       <p
         style={{
           fontSize: '14px',
-          color: 'rgba(255,255,255,0.4)',
+          color: '#737373',
           marginBottom: '1.25rem',
           marginTop: 0,
         }}
@@ -335,9 +336,9 @@ function ModelDetailPanel({
           <span
             key={i}
             style={{
-              background: 'rgba(255,255,255,0.08)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              color: 'rgba(255,255,255,0.8)',
+              background: 'rgba(56,189,248,0.08)',
+              border: '1px solid rgba(56,189,248,0.2)',
+              color: '#0a0a0a',
               borderRadius: '100px',
               padding: '0.3rem 0.85rem',
               fontSize: '13px',
@@ -363,15 +364,15 @@ function ModelDetailPanel({
               gap: '0.75rem',
               textDecoration: 'none',
               padding: '0.625rem 0',
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              borderBottom: '1px solid rgba(0,0,0,0.06)',
             }}
             onMouseEnter={(e) => {
               const el = e.currentTarget.querySelector<HTMLElement>('.ep-title')
-              if (el) el.style.color = 'white'
+              if (el) el.style.color = '#38BDF8'
             }}
             onMouseLeave={(e) => {
               const el = e.currentTarget.querySelector<HTMLElement>('.ep-title')
-              if (el) el.style.color = 'rgba(255,255,255,0.7)'
+              if (el) el.style.color = '#0a0a0a'
             }}
           >
             <div
@@ -380,7 +381,7 @@ function ModelDetailPanel({
                 height: '32px',
                 minWidth: '32px',
                 borderRadius: '100%',
-                background: '#1a1a1a',
+                background: '#38BDF8',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -396,7 +397,7 @@ function ModelDetailPanel({
               style={{
                 flex: 1,
                 fontSize: '14px',
-                color: 'rgba(255,255,255,0.7)',
+                color: '#0a0a0a',
                 lineHeight: 1.4,
                 minWidth: 0,
                 transition: 'color 0.15s',
@@ -404,20 +405,20 @@ function ModelDetailPanel({
             >
               {g.title}
             </span>
-            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '14px', flexShrink: 0 }}>
+            <span style={{ color: 'rgba(0,0,0,0.3)', fontSize: '14px', flexShrink: 0 }}>
               ↗
             </span>
           </a>
         ))}
       </div>
 
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem' }} />
+      <div style={{ borderTop: '1px solid rgba(0,0,0,0.08)', marginBottom: '1.5rem' }} />
 
       {/* Generate insight / loading / enriched content */}
       {detailLoading ? (
         <p
           className="animate-pulse-subtle"
-          style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', fontFamily: FONT }}
+          style={{ color: '#a3a3a3', fontSize: '14px', fontFamily: FONT }}
         >
           Generating insight…
         </p>
@@ -425,7 +426,7 @@ function ModelDetailPanel({
         <button
           onClick={onGenerate}
           style={{
-            background: 'white',
+            background: '#38BDF8',
             color: '#0a0a0a',
             border: 'none',
             borderRadius: '100px',
@@ -437,10 +438,10 @@ function ModelDetailPanel({
             transition: 'background 0.15s',
           }}
           onMouseEnter={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.9)')
+            ((e.currentTarget as HTMLButtonElement).style.background = '#2db3ee')
           }
           onMouseLeave={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.background = 'white')
+            ((e.currentTarget as HTMLButtonElement).style.background = '#38BDF8')
           }
         >
           Generate insight
@@ -451,7 +452,7 @@ function ModelDetailPanel({
             <p
               style={{
                 fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em',
-                textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)',
+                textTransform: 'uppercase', color: '#38BDF8',
                 marginBottom: '0.5rem', marginTop: 0,
               }}
             >
@@ -459,7 +460,7 @@ function ModelDetailPanel({
             </p>
             <p
               style={{
-                fontSize: '15px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.75,
+                fontSize: '15px', color: '#0a0a0a', lineHeight: 1.75,
                 wordBreak: 'break-word', overflowWrap: 'break-word', margin: 0,
               }}
             >
@@ -471,7 +472,7 @@ function ModelDetailPanel({
             <p
               style={{
                 fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em',
-                textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)',
+                textTransform: 'uppercase', color: '#38BDF8',
                 marginBottom: '0.5rem', marginTop: 0,
               }}
             >
@@ -479,7 +480,7 @@ function ModelDetailPanel({
             </p>
             <p
               style={{
-                fontSize: '14px', fontStyle: 'italic', color: 'rgba(255,255,255,0.7)',
+                fontSize: '14px', fontStyle: 'italic', color: '#525252',
                 lineHeight: 1.7, wordBreak: 'break-word', overflowWrap: 'break-word', margin: 0,
               }}
             >
@@ -492,7 +493,7 @@ function ModelDetailPanel({
               <p
                 style={{
                   fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em',
-                  textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)',
+                  textTransform: 'uppercase', color: '#a3a3a3',
                   marginBottom: '0.75rem', marginTop: 0,
                 }}
               >
@@ -502,11 +503,11 @@ function ModelDetailPanel({
                 {detail.guest_takes.map((gt, i) => (
                   <div
                     key={i}
-                    style={{ padding: '0.75rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                    style={{ padding: '0.75rem 0', borderBottom: '1px solid rgba(0,0,0,0.06)' }}
                   >
                     <p
                       style={{
-                        fontSize: '14px', fontWeight: 600, color: 'white',
+                        fontSize: '14px', fontWeight: 600, color: '#0a0a0a',
                         marginBottom: '0.25rem', marginTop: 0,
                       }}
                     >
@@ -514,7 +515,7 @@ function ModelDetailPanel({
                     </p>
                     <p
                       style={{
-                        fontSize: '14px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6,
+                        fontSize: '14px', color: '#525252', lineHeight: 1.6,
                         wordBreak: 'break-word', overflowWrap: 'break-word', margin: 0,
                       }}
                     >
@@ -530,7 +531,7 @@ function ModelDetailPanel({
             <p
               style={{
                 fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em',
-                textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)',
+                textTransform: 'uppercase', color: '#38BDF8',
                 marginBottom: '0.5rem', marginTop: 0,
               }}
             >
@@ -538,7 +539,7 @@ function ModelDetailPanel({
             </p>
             <p
               style={{
-                fontSize: '14px', color: 'rgba(255,255,255,0.65)', lineHeight: 1.7,
+                fontSize: '14px', color: '#525252', lineHeight: 1.7,
                 wordBreak: 'break-word', overflowWrap: 'break-word', margin: 0,
               }}
             >
@@ -589,15 +590,15 @@ function GuestDetailPanel({
           style={{
             background: 'transparent',
             border: 'none',
-            color: 'rgba(255,255,255,0.5)',
+            color: '#737373',
             fontSize: '14px',
             cursor: 'pointer',
             padding: '0 0 1.5rem 0',
             fontFamily: FONT,
           }}
-          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = 'white')}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#0a0a0a')}
           onMouseLeave={(e) =>
-            ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.5)')
+            ((e.currentTarget as HTMLButtonElement).style.color = '#737373')
           }
         >
           ← Guests
@@ -608,7 +609,7 @@ function GuestDetailPanel({
         style={{
           fontSize: '28px',
           fontWeight: 600,
-          color: 'white',
+          color: '#0a0a0a',
           lineHeight: 1.3,
           marginBottom: subtitle ? '0.25rem' : '1.25rem',
           marginTop: 0,
@@ -620,7 +621,7 @@ function GuestDetailPanel({
         <p
           style={{
             fontSize: '14px',
-            color: 'rgba(255,255,255,0.4)',
+            color: '#737373',
             marginBottom: '1.25rem',
             marginTop: 0,
           }}
@@ -629,7 +630,7 @@ function GuestDetailPanel({
         </p>
       )}
 
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem' }} />
+      <div style={{ borderTop: '1px solid rgba(0,0,0,0.08)', marginBottom: '1.5rem' }} />
 
       {/* FRAMEWORKS label */}
       <p
@@ -638,7 +639,7 @@ function GuestDetailPanel({
           fontWeight: 600,
           letterSpacing: '0.08em',
           textTransform: 'uppercase',
-          color: 'rgba(255,255,255,0.4)',
+          color: '#a3a3a3',
           marginBottom: '0.75rem',
           marginTop: 0,
         }}
@@ -648,7 +649,7 @@ function GuestDetailPanel({
 
       {/* Model list */}
       {guestModels.length === 0 ? (
-        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '14px', margin: 0 }}>
+        <p style={{ color: '#a3a3a3', fontSize: '14px', margin: 0 }}>
           No frameworks found for this guest.
         </p>
       ) : (
@@ -664,14 +665,14 @@ function GuestDetailPanel({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '0.75rem 0',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                borderBottom: '1px solid rgba(0,0,0,0.06)',
                 cursor: 'pointer',
               }}
             >
               <span
                 style={{
                   fontSize: '15px',
-                  color: hoveredIdx === i ? 'white' : 'rgba(255,255,255,0.8)',
+                  color: hoveredIdx === i ? '#38BDF8' : '#0a0a0a',
                   transition: 'color 0.15s',
                 }}
               >
@@ -680,7 +681,7 @@ function GuestDetailPanel({
               <span
                 style={{
                   fontSize: '14px',
-                  color: 'rgba(255,255,255,0.3)',
+                  color: 'rgba(0,0,0,0.3)',
                   opacity: hoveredIdx === i ? 1 : 0,
                   transition: 'opacity 0.15s',
                   flexShrink: 0,
@@ -705,15 +706,15 @@ function GuestDetailPanel({
               rel="noopener noreferrer"
               style={{
                 display: 'block',
-                color: 'rgba(255,255,255,0.5)',
+                color: '#737373',
                 fontSize: '13px',
                 textDecoration: 'none',
                 padding: '0.25rem 0',
                 transition: 'color 0.15s',
               }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = 'white')}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = '#38BDF8')}
               onMouseLeave={(e) =>
-                ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.5)')
+                ((e.currentTarget as HTMLElement).style.color = '#737373')
               }
             >
               Watch episode ↗
@@ -890,7 +891,7 @@ export default function MentalModelsPage() {
     <div
       style={{
         height: '100vh',
-        background: '#0a0a0a',
+        background: '#ffffff',
         fontFamily: FONT,
         display: 'flex',
         flexDirection: 'column',
@@ -904,40 +905,23 @@ export default function MentalModelsPage() {
           zIndex: 10,
           height: `${HEADER_H}px`,
           flexShrink: 0,
-          background: '#0a0a0a',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          background: 'rgba(255,255,255,0.95)',
+          borderBottom: '1px solid rgba(56,189,248,0.15)',
           display: 'flex',
           alignItems: 'center',
+          padding: '0 2rem',
+          backdropFilter: 'blur(12px)',
         }}
       >
-        <div
-          style={{
-            width: '100%',
-            padding: '0 2rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <Link href="/" style={{ lineHeight: 1, display: 'flex', textDecoration: 'none' }}>
-            <span style={{ fontSize: '20px', fontWeight: 600, color: 'white', fontFamily: FONT, letterSpacing: '-0.01em' }}>Chorus</span>
-          </Link>
-          <Link
-            href="/"
-            style={{
-              color: 'rgba(255,255,255,0.5)',
-              fontSize: '14px',
-              textDecoration: 'none',
-              transition: 'color 0.15s',
-            }}
-            onMouseEnter={(e) => ((e.target as HTMLElement).style.color = 'white')}
-            onMouseLeave={(e) =>
-              ((e.target as HTMLElement).style.color = 'rgba(255,255,255,0.5)')
-            }
-          >
-            ← Ask a question
-          </Link>
-        </div>
+        <Link href="/" style={{
+          color: '#0a0a0a',
+          fontWeight: '500',
+          fontSize: '15px',
+          textDecoration: 'none',
+        }}>
+          Chorus
+        </Link>
+        <FeatureNav currentFeature="library" />
       </header>
 
       {/* ── Two-panel body ── */}
@@ -949,8 +933,8 @@ export default function MentalModelsPage() {
             style={{
               width: isMobile ? '100%' : '360px',
               flexShrink: 0,
-              background: '#111111',
-              borderRight: isMobile ? 'none' : '1px solid rgba(255,255,255,0.08)',
+              background: '#f8f8f8',
+              borderRight: isMobile ? 'none' : '1px solid rgba(56,189,248,0.15)',
               display: 'flex',
               flexDirection: 'column',
               height: '100%',
@@ -959,7 +943,7 @@ export default function MentalModelsPage() {
             }}
           >
             {/* Mode toggle — sticky within left panel */}
-            <div style={{ position: 'sticky', top: 0, background: '#111111', zIndex: 5 }}>
+            <div style={{ position: 'sticky', top: 0, background: '#f8f8f8', zIndex: 5 }}>
               <ModeToggle
                 mode={mode}
                 onChange={(m) => {
@@ -984,21 +968,21 @@ export default function MentalModelsPage() {
                     placeholder="Search models..."
                     style={{
                       width: '100%',
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: '#ffffff',
+                      border: '1px solid rgba(56,189,248,0.2)',
                       borderRadius: '8px',
                       padding: '0.75rem 1rem',
-                      color: 'white',
+                      color: '#0a0a0a',
                       fontSize: '13px',
                       outline: 'none',
                       fontFamily: FONT,
                       boxSizing: 'border-box',
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'
+                      e.currentTarget.style.borderColor = 'rgba(56,189,248,0.5)'
                     }}
                     onBlur={(e) => {
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+                      e.currentTarget.style.borderColor = 'rgba(56,189,248,0.2)'
                     }}
                   />
 
@@ -1009,7 +993,7 @@ export default function MentalModelsPage() {
                       fontWeight: 600,
                       letterSpacing: '0.08em',
                       textTransform: 'uppercase',
-                      color: 'rgba(255,255,255,0.4)',
+                      color: '#a3a3a3',
                       margin: '1rem 0 0.5rem',
                     }}
                   >
@@ -1032,12 +1016,12 @@ export default function MentalModelsPage() {
                           onClick={() => handleChipClick(chip)}
                           style={{
                             background: active
-                              ? 'rgba(255,255,255,0.12)'
-                              : 'rgba(255,255,255,0.06)',
+                              ? 'rgba(56,189,248,0.08)'
+                              : '#ffffff',
                             border: `1px solid ${
-                              active ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)'
+                              active ? '#38BDF8' : 'rgba(56,189,248,0.2)'
                             }`,
-                            color: active ? 'white' : 'rgba(255,255,255,0.7)',
+                            color: active ? '#0a0a0a' : '#737373',
                             borderRadius: '8px',
                             padding: '0.75rem 0.5rem',
                             fontSize: '13px',
@@ -1063,18 +1047,18 @@ export default function MentalModelsPage() {
                       setSelectedModel(null)
                     }}
                     style={{
-                      color: 'rgba(255,255,255,0.4)',
+                      color: '#38BDF8',
                       fontSize: '13px',
                       cursor: 'pointer',
                       padding: '0.75rem 1rem',
                       display: 'block',
-                      borderBottom: '1px solid rgba(255,255,255,0.05)',
+                      borderBottom: '1px solid rgba(0,0,0,0.05)',
                       fontFamily: FONT,
                       transition: 'color 0.15s',
                     }}
-                    onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = 'white')}
+                    onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = '#2db3ee')}
                     onMouseLeave={(e) =>
-                      ((e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)')
+                      ((e.currentTarget as HTMLElement).style.color = '#38BDF8')
                     }
                   >
                     ← All topics
@@ -1083,7 +1067,7 @@ export default function MentalModelsPage() {
 
                 {/* Model count */}
                 <div style={{ padding: '0.5rem 1rem 0.25rem' }}>
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontFamily: FONT }}>
+                  <span style={{ fontSize: '12px', color: '#a3a3a3', fontFamily: FONT }}>
                     {loading ? '…' : `Showing ${filteredModels.length} models`}
                   </span>
                 </div>
@@ -1096,7 +1080,7 @@ export default function MentalModelsPage() {
                         key={i}
                         style={{
                           padding: '0.875rem 1rem',
-                          borderBottom: '1px solid rgba(255,255,255,0.05)',
+                          borderBottom: '1px solid rgba(0,0,0,0.05)',
                         }}
                       >
                         <div
@@ -1140,27 +1124,27 @@ export default function MentalModelsPage() {
                     placeholder="Search guests..."
                     style={{
                       width: '100%',
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: '#ffffff',
+                      border: '1px solid rgba(56,189,248,0.2)',
                       borderRadius: '8px',
                       padding: '0.75rem 1rem',
-                      color: 'white',
+                      color: '#0a0a0a',
                       fontSize: '13px',
                       outline: 'none',
                       fontFamily: FONT,
                       boxSizing: 'border-box',
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'
+                      e.currentTarget.style.borderColor = 'rgba(56,189,248,0.5)'
                     }}
                     onBlur={(e) => {
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+                      e.currentTarget.style.borderColor = 'rgba(56,189,248,0.2)'
                     }}
                   />
                 </div>
 
                 <div style={{ padding: '0.5rem 1rem 0.75rem' }}>
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontFamily: FONT }}>
+                  <span style={{ fontSize: '12px', color: '#a3a3a3', fontFamily: FONT }}>
                     {loading ? '…' : `${filteredGuests.length} guests`}
                   </span>
                 </div>
@@ -1175,7 +1159,7 @@ export default function MentalModelsPage() {
                           alignItems: 'center',
                           gap: '0.75rem',
                           padding: '0.875rem 1rem',
-                          borderBottom: '1px solid rgba(255,255,255,0.05)',
+                          borderBottom: '1px solid rgba(0,0,0,0.05)',
                         }}
                       >
                         <div
@@ -1225,7 +1209,7 @@ export default function MentalModelsPage() {
           <div
             style={{
               flex: 1,
-              background: '#0a0a0a',
+              background: '#ffffff',
               height: '100%',
               overflowY: 'auto',
               overflowX: 'hidden',
@@ -1244,7 +1228,7 @@ export default function MentalModelsPage() {
                       height: '100%',
                     }}
                   >
-                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '16px', fontFamily: FONT }}>
+                    <p style={{ color: '#a3a3a3', fontSize: '16px', fontFamily: FONT }}>
                       Select a model to explore
                     </p>
                   </div>
@@ -1278,7 +1262,7 @@ export default function MentalModelsPage() {
                       height: '100%',
                     }}
                   >
-                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '16px', fontFamily: FONT }}>
+                    <p style={{ color: '#a3a3a3', fontSize: '16px', fontFamily: FONT }}>
                       Select a guest to see their frameworks
                     </p>
                   </div>
