@@ -891,6 +891,14 @@ export default function Home() {
   const card1InputRef = useRef<HTMLInputElement>(null)
   const [brainExpanded, setBrainExpanded] = useState(false)
   const [selectedBucket, setSelectedBucket] = useState<number | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   // On mount: read ?guest= param and sessionStorage filter
   useEffect(() => {
@@ -1022,8 +1030,8 @@ export default function Home() {
   ): React.CSSProperties => {
     const hovered = hoveredCard === idx
     return {
-      width: '340px',
-      height: '420px',
+      width: isMobile ? '100%' : '340px',
+      height: isMobile ? 'auto' : '420px',
       borderRadius: '24px',
       position: 'relative',
       cursor: 'pointer',
@@ -1065,10 +1073,12 @@ export default function Home() {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
+            justifyContent: isMobile ? 'flex-start' : 'center',
+            overflowY: isMobile ? 'auto' : 'hidden',
+            overflowX: 'hidden',
             fontFamily: FONT,
-            paddingTop: '3rem',
+            paddingTop: isMobile ? '2rem' : '3rem',
+            paddingBottom: isMobile ? '4rem' : '0',
           }}
         >
           {/* Logo + tagline */}
@@ -1076,7 +1086,7 @@ export default function Home() {
             style={{
               textAlign: 'center',
               animation: 'fadeInDown 0.6s ease-out forwards',
-              marginBottom: '3rem',
+              marginBottom: isMobile ? '1.5rem' : '3rem',
             }}
           >
             <h1 style={{ fontSize: '1.25rem', fontWeight: 500, color: '#0a0a0a', letterSpacing: '0.02em', margin: 0, lineHeight: 1 }}>
@@ -1105,7 +1115,16 @@ export default function Home() {
 
           {/* ── Three feature cards ── */}
           <div
-            style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', justifyContent: 'center', padding: '0 2rem' }}
+            style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: '1.5rem',
+              alignItems: isMobile ? 'stretch' : 'flex-start',
+              justifyContent: 'center',
+              padding: isMobile ? '0 1.25rem' : '0 2rem',
+              width: '100%',
+              maxWidth: isMobile ? '480px' : 'none',
+            }}
           >
 
             {/* ── CARD 1 — THE BRAIN ── */}
