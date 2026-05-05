@@ -38,6 +38,7 @@ export default function FeatureNav({ currentFeature }: { currentFeature: Feature
             cursor: 'pointer',
             display: 'inline-block',
             lineHeight: 1.5,
+            whiteSpace: 'nowrap',
           }}
           onMouseEnter={(e) => {
             const el = e.currentTarget as HTMLAnchorElement

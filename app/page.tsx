@@ -1237,7 +1237,7 @@ export default function Home() {
           </div>
 
           {/* Footer */}
-          <div style={{ position: 'absolute', bottom: '1.5rem', width: '100%' }}>
+          <div style={isMobile ? { width: '100%', padding: '1.5rem 1.25rem 0' } : { position: 'absolute', bottom: '1.5rem', width: '100%' }}>
             <p style={{ color: '#a3a3a3', fontSize: '12px', margin: '0 auto', fontFamily: FONT, textAlign: 'center', maxWidth: '400px', lineHeight: 1.6 }}>
               A deep thank you to Lenny Rachitsky for open-sourcing his podcast transcripts and making this possible.
             </p>
