@@ -401,11 +401,75 @@ function ErrorMessage({ message }: { message: string }) {
   )
 }
 
+// ── Skeleton: synthesis card while Claude is working ─────────────────────────
+
+function SynthesisCardSkeleton() {
+  return (
+    <div className="overflow-hidden"
+      style={{ background: 'linear-gradient(145deg, #1C0F0A, #0d0908)', border: '1px solid rgba(232,84,58,0.2)', borderRadius: '24px' }}>
+      <div className="px-8 pt-6 pb-7">
+        <p style={{ ...SECTION_LABEL_STYLE, marginBottom: '1.25rem' }}>Synthesis</p>
+        <div className="space-y-5">
+          {[88, 76, 92, 68].map((w, i) => (
+            <div key={i}>
+              <div className="animate-pulse" style={{ height: '14px', background: 'rgba(255,255,255,0.12)', borderRadius: '4px', width: `${w}%`, marginBottom: '10px' }} />
+              <div className="animate-pulse" style={{ height: '12px', background: 'rgba(255,255,255,0.07)', borderRadius: '4px', width: '100%', marginBottom: '5px' }} />
+              <div className="animate-pulse" style={{ height: '12px', background: 'rgba(255,255,255,0.07)', borderRadius: '4px', width: '82%' }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Early source cards: show while synthesis is loading ───────────────────────
+
+function EarlySourceCard({ source }: { source: Source }) {
+  return (
+    <div className="bg-white rounded-2xl flex flex-col"
+      style={{ border: '1px solid rgba(0,0,0,0.08)', padding: '1.5rem', fontFamily: FONT }}>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="shrink-0 rounded-full bg-[#0a0a0a] flex items-center justify-center"
+          style={{ width: '44px', height: '44px', minWidth: '44px' }}>
+          <span style={{ color: 'white', fontSize: '14px', fontWeight: 600, lineHeight: 1 }}>
+            {getInitials(source.guest)}
+          </span>
+        </div>
+        <div className="min-w-0">
+          <p style={{ fontSize: '16px', fontWeight: 600, color: '#0a0a0a', lineHeight: 1.3 }}>{source.guest}</p>
+          <p className="truncate" style={{ fontSize: '13px', color: '#737373', marginTop: '2px' }}>{source.episode_title}</p>
+        </div>
+      </div>
+      <div style={{ height: '1px', background: 'rgba(0,0,0,0.06)', marginBottom: '1rem' }} />
+      <div className="space-y-2 flex-1">
+        {[95, 88, 72, 84].map((w, i) => (
+          <div key={i} className="animate-pulse"
+            style={{ height: '13px', background: 'rgba(0,0,0,0.06)', borderRadius: '4px', width: `${w}%` }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function EarlyVoiceCards({ sources }: { sources: Source[] }) {
+  return (
+    <div>
+      <p style={{ ...SECTION_LABEL_STYLE, marginBottom: '0.75rem' }}>Voices</p>
+      <div className="flex flex-col gap-6">
+        {sources.map((source, i) => <EarlySourceCard key={i} source={source} />)}
+      </div>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AskPage() {
   const [question, setQuestion] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false)          // true before sources arrive
+  const [synthesisLoading, setSynthesisLoading] = useState(false) // true between sources and done
+  const [sources, setSources] = useState<Source[]>([])
   const [response, setResponse] = useState<AskApiResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedSource, setSelectedSource] = useState<Source | null>(null)
@@ -414,43 +478,86 @@ export default function AskPage() {
 
   const ask = useCallback(async (q: string, skipRewrite?: boolean) => {
     const trimmed = q.trim()
-    if (!trimmed || loading) return
+    if (!trimmed || loading || synthesisLoading) return
     setQuestion(trimmed)
     setLoading(true)
+    setSynthesisLoading(false)
     setResponse(null)
+    setSources([])
     setError(null)
     setSelectedBucket(null)
+
     try {
       const res = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: trimmed, ...(skipRewrite && { skipRewrite: true }) }),
       })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error ?? 'Something went wrong. Please try again.')
-      } else {
-        setResponse(data as AskApiResponse)
-        setTimeout(() => {
-          resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }, 100)
+
+      if (!res.body) {
+        setError('No response body')
+        setLoading(false)
+        return
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let currentEvent = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7).trim()
+          } else if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              if (currentEvent === 'sources') {
+                setSources(data.sources as Source[])
+                setLoading(false)
+                setSynthesisLoading(true)
+                setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+              } else if (currentEvent === 'done') {
+                setResponse(data as AskApiResponse)
+                setSynthesisLoading(false)
+              } else if (currentEvent === 'error') {
+                setError(data.message ?? 'Something went wrong. Please try again.')
+                setLoading(false)
+                setSynthesisLoading(false)
+              }
+            } catch {
+              // malformed JSON line — skip
+            }
+            currentEvent = ''
+          }
+        }
       }
     } catch {
       setError('Network error — please check your connection and try again.')
-    } finally {
       setLoading(false)
+      setSynthesisLoading(false)
     }
-  }, [loading])
+  }, [loading, synthesisLoading])
 
   const reset = () => {
     setResponse(null)
     setError(null)
     setQuestion('')
+    setSources([])
+    setLoading(false)
+    setSynthesisLoading(false)
     setSelectedSource(null)
     setSelectedBucket(null)
   }
 
-  const hasResult = Boolean(response || error || loading)
+  const hasResult = Boolean(response || error || loading || synthesisLoading || sources.length > 0)
 
   return (
     <>
@@ -636,11 +743,24 @@ export default function AskPage() {
               style={{ maxWidth: '1100px', animation: 'resultsEnter 0.4s ease-out 0.1s both' }}
             >
               <div ref={resultRef} style={{ paddingTop: '2rem', paddingBottom: '6rem' }}>
+                {/* Phase 1: searching (before sources arrive) */}
                 {loading && <LoadingState />}
-                {!loading && error && <ErrorMessage message={error} />}
-                {!loading && response && (
+
+                {/* Phase 2: sources ready, synthesis in progress */}
+                {!loading && synthesisLoading && (
+                  <div className="mt-6 space-y-4">
+                    <SynthesisCardSkeleton />
+                    <EarlyVoiceCards sources={sources} />
+                  </div>
+                )}
+
+                {/* Phase 3: fully done */}
+                {!loading && !synthesisLoading && response && (
                   <AnswerDisplay response={response} onOpenSource={setSelectedSource} />
                 )}
+
+                {/* Error */}
+                {!loading && !synthesisLoading && error && <ErrorMessage message={error} />}
               </div>
             </div>
           )}
