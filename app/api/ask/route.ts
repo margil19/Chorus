@@ -76,47 +76,39 @@ export interface AskApiResponse {
 // ── Prompts ───────────────────────────────────────────────────────────────────
 
 /**
- * Static synthesis instructions — cached by Anthropic on repeated calls.
- * Keep this block stable; only the user message changes per request.
+ * Claude outputs NDJSON — one JSON object per line, in this order:
+ *   1. synthesis object  (sections + bottom_line)
+ *   2. voice objects     (one per guest, max 4)
+ *   3. meta object       (consensus + contrarian)
+ *
+ * This lets us emit each piece as an SSE event the moment it completes,
+ * so the UI renders progressively instead of waiting for the full response.
  */
 const SYNTHESIS_SYSTEM = `\
 You are Lenny's Brain — a synthesis engine built on 300+ conversations from Lenny's Podcast, \
-the world's leading resource for product managers and growth leaders. \
-Your job is to synthesize insights from podcast transcript excerpts into a structured, \
-high-signal answer for product leaders. Be direct and specific. \
-Attribute every insight to a named guest inline using **bold** (e.g. "**Ada Chen Rekhi** argues…").
+the world's leading resource for product managers and growth leaders.
 
-Return ONLY valid JSON matching this exact schema — no markdown fences, no prose outside the object:
+Output your response as newline-delimited JSON (NDJSON). \
+Each JSON object must be on a single line with no line breaks inside it. \
+Output exactly in this order with nothing else:
 
-{
-  "sections": [
-    {
-      "header": "4–6 word thematic header",
-      "content": "2–3 sentences. Attribute at least one guest per section using **Name**. No padding."
-    }
-  ],
-  "consensus": "1–2 sentences on what multiple guests clearly converge on, or null.",
-  "contrarian": "The sharpest surprising take from a specific guest — name them — or null.",
-  "bottom_line": "One crisp sentence. The single most actionable takeaway. Max 25 words.",
-  "voices": [
-    {
-      "guest": "Exact guest name as it appears in the context",
-      "summary": "2–3 sentences directly answering the question from this guest's specific perspective, using their ideas from the excerpt. Written as a proper answer, not a quote or transcript snippet.",
-      "relevant": true
-    }
-  ]
-}
+Line 1 — synthesis:
+{"type":"synthesis","sections":[{"header":"4–6 word thematic header","content":"2–3 sentences. Use **Guest Name** attribution for at least one guest per section."}],"bottom_line":"One imperative sentence ≤25 words."}
+
+Lines 2–N — one voice per guest in context order (max 4):
+{"type":"voice","guest":"Exact guest name","summary":"2–3 sentences directly answering the question from this guest's perspective only.","relevant":true}
+
+Final line — meta:
+{"type":"meta","consensus":"1–2 sentences on what guests converge on, or null","contrarian":"Sharpest surprising take naming the guest, or null"}
 
 Rules:
-- Exactly 3–4 sections
-- Every section names at least one guest in **bold**
-- No walls of text — each section is 2–3 sentences max
-- bottom_line must be ≤ 25 words and start with an imperative verb
-- voices must have one entry per guest in the context, in order — maximum 4 entries
-- Each voice summary directly answers the user's question from that specific guest's perspective only
-- relevant: true if the guest's excerpt directly addresses the question; false if only tangentially \
-related or requires significant inference. Be strict — mark false if the content required \
-substantial guessing to connect to the question.`
+- Exactly 3–4 sections in the synthesis object
+- Every section attributes at least one guest in **bold**
+- 2–3 sentences max per section, no padding
+- bottom_line starts with an imperative verb, ≤25 words
+- One voice entry per guest in context, max 4 total
+- relevant: true if the excerpt directly addresses the question; false if only tangential
+- No markdown fences, no text outside the JSON objects, no blank lines between objects`
 
 function buildUserPrompt(question: string, context: string): string {
   return `A product leader has asked: "${question}"
@@ -165,7 +157,7 @@ function stripFences(raw: string): string {
 async function rewriteQuery(question: string): Promise<string> {
   try {
     const msg = await anthropic.messages.create({
-      model: 'claude-haiku-3-5-20241022',
+      model: 'claude-sonnet-4-5-20250514',
       max_tokens: 120,
       messages: [
         {
@@ -205,9 +197,7 @@ async function embedQuery(query: string): Promise<number[]> {
 
 type Enqueue = (event: string, data: unknown) => void
 
-function sseResponse(
-  fn: (enqueue: Enqueue) => Promise<void>
-): Response {
+function sseResponse(fn: (enqueue: Enqueue) => Promise<void>): Response {
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     async start(controller) {
@@ -234,6 +224,34 @@ function sseResponse(
   })
 }
 
+// ── NDJSON stream parser ──────────────────────────────────────────────────────
+// Counts braces to detect complete JSON objects without relying on newlines.
+
+function makeNdjsonParser(onObject: (obj: Record<string, unknown>) => void) {
+  let buffer = ''
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  return function push(chunk: string) {
+    for (const ch of chunk) {
+      buffer += ch
+      if (escaped) { escaped = false; continue }
+      if (ch === '\\' && inString) { escaped = true; continue }
+      if (ch === '"') { inString = !inString; continue }
+      if (inString) continue
+      if (ch === '{') depth++
+      if (ch === '}') {
+        depth--
+        if (depth === 0 && buffer.trim()) {
+          try { onObject(JSON.parse(buffer.trim()) as Record<string, unknown>) } catch { /* skip malformed */ }
+          buffer = ''
+        }
+      }
+    }
+  }
+}
+
 // ── In-memory response cache (LRU, max 100 entries) ──────────────────────────
 
 const responseCache = new Map<string, AskApiResponse>()
@@ -256,11 +274,10 @@ export async function POST(req: NextRequest) {
   if (precomputed) {
     const data = precomputed as AskApiResponse
     return sseResponse(async (enqueue) => {
-      enqueue('sources', {
-        sources: data.sources,
-        guest_count: data.guest_count,
-        rewritten_query: data.rewritten_query,
-      })
+      enqueue('sources', { sources: data.sources, guest_count: data.guest_count, rewritten_query: data.rewritten_query })
+      enqueue('synthesis', { sections: data.sections, bottom_line: data.bottom_line })
+      for (const v of data.voices) enqueue('voice', v)
+      enqueue('meta', { consensus: data.consensus, contrarian: data.contrarian })
       enqueue('done', data)
     })
   }
@@ -269,11 +286,10 @@ export async function POST(req: NextRequest) {
   if (responseCache.has(cacheKey)) {
     const cached = responseCache.get(cacheKey)!
     return sseResponse(async (enqueue) => {
-      enqueue('sources', {
-        sources: cached.sources,
-        guest_count: cached.guest_count,
-        rewritten_query: cached.rewritten_query,
-      })
+      enqueue('sources', { sources: cached.sources, guest_count: cached.guest_count, rewritten_query: cached.rewritten_query })
+      enqueue('synthesis', { sections: cached.sections, bottom_line: cached.bottom_line })
+      for (const v of cached.voices) enqueue('voice', v)
+      enqueue('meta', { consensus: cached.consensus, contrarian: cached.contrarian })
       enqueue('done', cached)
     })
   }
@@ -282,51 +298,39 @@ export async function POST(req: NextRequest) {
     const t0 = Date.now()
     const lap = (label: string) => console.log(`[ask] ${label}: ${Date.now() - t0}ms`)
 
-    // 1. Optionally rewrite query for better retrieval
+    // 1. Optionally rewrite query
     const queryToEmbed = skipRewrite ? question : await rewriteQuery(question)
     lap('rewrite')
 
-    // 2. Embed the (possibly rewritten) query
+    // 2. Embed
     const embedding = await embedQuery(queryToEmbed)
     lap('embed')
 
-    // 3. Hybrid search — reduced match_count for faster DB scan
-    const { data: rawChunks, error: rpcError } = await supabase.rpc(
-      'match_chunks',
-      {
-        query_embedding: embedding,
-        query_text: queryToEmbed,
-        match_count: 10,
-      }
-    )
+    // 3. Hybrid search
+    const { data: rawChunks, error: rpcError } = await supabase.rpc('match_chunks', {
+      query_embedding: embedding,
+      query_text: queryToEmbed,
+      match_count: 10,
+    })
     lap('supabase')
 
     if (rpcError) {
       console.error('Supabase RPC error:', rpcError)
-      enqueue('error', {
-        message:
-          'Vector search failed. Make sure the updated match_chunks function is applied in Supabase.',
-      })
+      enqueue('error', { message: 'Vector search failed. Make sure the updated match_chunks function is applied in Supabase.' })
       return
     }
 
     const chunks = (rawChunks ?? []) as ChunkMatch[]
-
     if (chunks.length === 0) {
-      enqueue('error', {
-        message: 'No relevant content found. Try a different question.',
-      })
+      enqueue('error', { message: 'No relevant content found. Try a different question.' })
       return
     }
 
-    // 4. Dedup to first unique chunk per guest, ordered by hybrid score
+    // 4. Dedup — top 4 unique guests
     const seen = new Set<string>()
     const topChunks: ChunkMatch[] = []
     for (const chunk of chunks) {
-      if (!seen.has(chunk.guest)) {
-        seen.add(chunk.guest)
-        topChunks.push(chunk)
-      }
+      if (!seen.has(chunk.guest)) { seen.add(chunk.guest); topChunks.push(chunk) }
       if (topChunks.length === 4) break
     }
 
@@ -345,52 +349,52 @@ export async function POST(req: NextRequest) {
 
     const uniqueGuests = new Set(chunks.map((c) => c.guest)).size
 
-    // 6. ⚡ Send sources immediately — client shows guest cards while Claude thinks
-    enqueue('sources', {
-      sources,
-      guest_count: uniqueGuests,
-      rewritten_query: queryToEmbed,
-    })
+    // 6. ⚡ Send sources immediately
+    enqueue('sources', { sources, guest_count: uniqueGuests, rewritten_query: queryToEmbed })
     lap('sources_sent')
 
-    // 7. Claude synthesis — system message is prompt-cached across requests
+    // 7. Stream Claude synthesis — emit each NDJSON object as it completes
     const context = buildContext(topChunks)
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 900,
-      system: [
-        {
-          type: 'text',
-          text: SYNTHESIS_SYSTEM,
-          cache_control: { type: 'ephemeral' },
-        },
-      ],
-      messages: [
-        { role: 'user', content: buildUserPrompt(queryToEmbed, context) },
-      ],
+
+    // Accumulate parts for final cache entry
+    let synthesisPart: { sections: AnswerSection[]; bottom_line: string } | null = null
+    const voiceParts: Voice[] = []
+    let metaPart: { consensus: string | null; contrarian: string | null } | null = null
+
+    const parser = makeNdjsonParser((obj) => {
+      if (obj.type === 'synthesis') {
+        synthesisPart = obj as unknown as typeof synthesisPart
+        enqueue('synthesis', obj)
+      } else if (obj.type === 'voice') {
+        voiceParts.push(obj as unknown as Voice)
+        enqueue('voice', obj)
+      } else if (obj.type === 'meta') {
+        metaPart = obj as unknown as typeof metaPart
+        enqueue('meta', obj)
+      }
     })
 
+    const claudeStream = anthropic.messages.stream({
+      model: 'claude-sonnet-4-5-20250514',
+      max_tokens: 900,
+      system: [{ type: 'text', text: SYNTHESIS_SYSTEM, cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: buildUserPrompt(queryToEmbed, context) }],
+    })
+
+    claudeStream.on('text', (text) => parser(text))
+    await claudeStream.finalMessage()
     lap('claude')
-    const raw =
-      message.content[0].type === 'text' ? message.content[0].text : ''
 
-    const synthesis = JSON.parse(stripFences(raw)) as {
-      sections: AnswerSection[]
-      consensus: string | null
-      contrarian: string | null
-      bottom_line: string
-      voices: Voice[]
-    }
-
+    // 8. Assemble full response for cache
     const response: AskApiResponse = {
-      sections: synthesis.sections,
-      consensus: synthesis.consensus,
-      contrarian: synthesis.contrarian,
-      bottom_line: synthesis.bottom_line,
+      sections: synthesisPart ? (synthesisPart as { sections: AnswerSection[] }).sections : [],
+      bottom_line: synthesisPart ? (synthesisPart as { bottom_line: string }).bottom_line : '',
+      consensus: metaPart ? (metaPart as { consensus: string | null }).consensus : null,
+      contrarian: metaPart ? (metaPart as { contrarian: string | null }).contrarian : null,
+      voices: voiceParts.filter((v) => v.relevant !== false),
       sources,
       guest_count: uniqueGuests,
       rewritten_query: queryToEmbed,
-      voices: (synthesis.voices ?? []).filter((v) => v.relevant !== false),
     }
 
     responseCache.set(cacheKey, response)
@@ -399,7 +403,6 @@ export async function POST(req: NextRequest) {
       responseCache.delete(firstKey!)
     }
 
-    // 8. Send completed synthesis
     enqueue('done', response)
     lap('total')
   })

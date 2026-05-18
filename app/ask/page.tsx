@@ -467,23 +467,32 @@ function EarlyVoiceCards({ sources }: { sources: Source[] }) {
 
 export default function AskPage() {
   const [question, setQuestion] = useState('')
-  const [loading, setLoading] = useState(false)          // true before sources arrive
-  const [synthesisLoading, setSynthesisLoading] = useState(false) // true between sources and done
+  const [activeClip, setActiveClip] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
   const [sources, setSources] = useState<Source[]>([])
+  const [streamSections, setStreamSections] = useState<AnswerSection[] | null>(null)
+  const [streamBottomLine, setStreamBottomLine] = useState<string | null>(null)
+  const [streamVoices, setStreamVoices] = useState<Voice[]>([])
+  const [streamMeta, setStreamMeta] = useState<{ consensus: string | null; contrarian: string | null } | null>(null)
   const [response, setResponse] = useState<AskApiResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedSource, setSelectedSource] = useState<Source | null>(null)
   const [selectedBucket, setSelectedBucket] = useState<number | null>(null)
   const resultRef = useRef<HTMLDivElement>(null)
 
+  const busy = loading || (sources.length > 0 && !response && !error)
+
   const ask = useCallback(async (q: string, skipRewrite?: boolean) => {
     const trimmed = q.trim()
-    if (!trimmed || loading || synthesisLoading) return
+    if (!trimmed || busy) return
     setQuestion(trimmed)
     setLoading(true)
-    setSynthesisLoading(false)
-    setResponse(null)
     setSources([])
+    setStreamSections(null)
+    setStreamBottomLine(null)
+    setStreamVoices([])
+    setStreamMeta(null)
+    setResponse(null)
     setError(null)
     setSelectedBucket(null)
 
@@ -494,11 +503,7 @@ export default function AskPage() {
         body: JSON.stringify({ question: trimmed, ...(skipRewrite && { skipRewrite: true }) }),
       })
 
-      if (!res.body) {
-        setError('No response body')
-        setLoading(false)
-        return
-      }
+      if (!res.body) { setError('No response body'); setLoading(false); return }
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -509,7 +514,6 @@ export default function AskPage() {
         const { done, value } = await reader.read()
         if (done) break
         buffer += decoder.decode(value, { stream: true })
-
         const lines = buffer.split('\n')
         buffer = lines.pop() ?? ''
 
@@ -522,19 +526,21 @@ export default function AskPage() {
               if (currentEvent === 'sources') {
                 setSources(data.sources as Source[])
                 setLoading(false)
-                setSynthesisLoading(true)
                 setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+              } else if (currentEvent === 'synthesis') {
+                setStreamSections(data.sections as AnswerSection[])
+                setStreamBottomLine(data.bottom_line as string)
+              } else if (currentEvent === 'voice') {
+                setStreamVoices((prev) => [...prev, data as Voice])
+              } else if (currentEvent === 'meta') {
+                setStreamMeta(data as { consensus: string | null; contrarian: string | null })
               } else if (currentEvent === 'done') {
                 setResponse(data as AskApiResponse)
-                setSynthesisLoading(false)
               } else if (currentEvent === 'error') {
                 setError(data.message ?? 'Something went wrong. Please try again.')
                 setLoading(false)
-                setSynthesisLoading(false)
               }
-            } catch {
-              // malformed JSON line — skip
-            }
+            } catch { /* skip malformed */ }
             currentEvent = ''
           }
         }
@@ -542,22 +548,25 @@ export default function AskPage() {
     } catch {
       setError('Network error — please check your connection and try again.')
       setLoading(false)
-      setSynthesisLoading(false)
     }
-  }, [loading, synthesisLoading])
+  }, [busy])
 
   const reset = () => {
     setResponse(null)
     setError(null)
     setQuestion('')
     setSources([])
+    setStreamSections(null)
+    setStreamBottomLine(null)
+    setStreamVoices([])
+    setStreamMeta(null)
     setLoading(false)
-    setSynthesisLoading(false)
+    setActiveClip(null)
     setSelectedSource(null)
     setSelectedBucket(null)
   }
 
-  const hasResult = Boolean(response || error || loading || synthesisLoading || sources.length > 0)
+  const hasResult = Boolean(response || error || loading || sources.length > 0)
 
   return (
     <>
@@ -743,24 +752,54 @@ export default function AskPage() {
               style={{ maxWidth: '1100px', animation: 'resultsEnter 0.4s ease-out 0.1s both' }}
             >
               <div ref={resultRef} style={{ paddingTop: '2rem', paddingBottom: '6rem' }}>
-                {/* Phase 1: searching (before sources arrive) */}
+                {/* Phase 1: searching */}
                 {loading && <LoadingState />}
 
-                {/* Phase 2: sources ready, synthesis in progress */}
-                {!loading && synthesisLoading && (
+                {/* Error */}
+                {!loading && error && <ErrorMessage message={error} />}
+
+                {/* Phase 2–4: progressive streaming */}
+                {!loading && !error && sources.length > 0 && (
                   <div className="mt-6 space-y-4">
-                    <SynthesisCardSkeleton />
-                    <EarlyVoiceCards sources={sources} />
+
+                    {/* Synthesis card — skeleton until synthesis event arrives */}
+                    {!streamSections
+                      ? <SynthesisCardSkeleton />
+                      : <SynthesisCard sections={streamSections} bottomLine={streamBottomLine ?? ''} />
+                    }
+
+                    {/* Voice cards — real ones animate in one by one, rest stay skeleton */}
+                    <div>
+                      <p style={{ ...SECTION_LABEL_STYLE, marginBottom: '0.75rem' }}>Voices</p>
+                      <div className="flex flex-col gap-6">
+                        {sources.map((source, i) => {
+                          const voice = streamVoices[i]
+                          if (voice) {
+                            return (
+                              <VoiceCard
+                                key={i}
+                                voice={voice}
+                                source={source}
+                                onOpen={() => setSelectedSource(source)}
+                                activeClip={activeClip}
+                                setActiveClip={setActiveClip}
+                              />
+                            )
+                          }
+                          return <EarlySourceCard key={i} source={source} />
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Consensus / contrarian — appear when meta event arrives */}
+                    {streamMeta && (
+                      <ConsensusContrarianRow
+                        consensus={streamMeta.consensus}
+                        contrarian={streamMeta.contrarian}
+                      />
+                    )}
                   </div>
                 )}
-
-                {/* Phase 3: fully done */}
-                {!loading && !synthesisLoading && response && (
-                  <AnswerDisplay response={response} onOpenSource={setSelectedSource} />
-                )}
-
-                {/* Error */}
-                {!loading && !synthesisLoading && error && <ErrorMessage message={error} />}
               </div>
             </div>
           )}
