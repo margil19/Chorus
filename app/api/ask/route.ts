@@ -356,7 +356,7 @@ export async function POST(req: NextRequest) {
     // 7. Claude synthesis — system message is prompt-cached across requests
     const context = buildContext(topChunks)
     const message = await anthropic.messages.create({
-      model: 'claude-haiku-3-5-20241022',
+      model: 'claude-sonnet-4-6',
       max_tokens: 900,
       system: [
         {
