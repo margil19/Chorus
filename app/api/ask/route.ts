@@ -291,7 +291,7 @@ export async function POST(req: NextRequest) {
       {
         query_embedding: embedding,
         query_text: queryToEmbed,
-        match_count: 20,
+        match_count: 10,
       }
     )
 

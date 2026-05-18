@@ -38,11 +38,9 @@ CREATE TABLE IF NOT EXISTS chunks (
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index for ANN search (cosine similarity)
--- Tune `lists` after loading all data: lists ≈ sqrt(total_rows)
+-- Index for ANN search (cosine similarity) — HNSW for high recall with no tuning required
 CREATE INDEX IF NOT EXISTS chunks_embedding_idx
-  ON chunks USING ivfflat (embedding vector_cosine_ops)
-  WITH (lists = 200);
+  ON chunks USING hnsw (embedding halfvec_cosine_ops);
 
 -- Fast lookup of all chunks for an episode
 CREATE INDEX IF NOT EXISTS chunks_episode_id_idx ON chunks (episode_id);
@@ -66,8 +64,8 @@ END $$;
 
 -- ── RPC: match_chunks ────────────────────────────────────────────────────────
 -- Hybrid search: two-phase retrieval.
---   Phase 1 — ANN vector search (uses HNSW index): fetches match_count * 4
---              candidates so re-ranking has meaningful signal to work with.
+--   Phase 1 — ANN vector search via HNSW index: fetches match_count * 4
+--              candidates so re-ranking has room to promote text matches.
 --   Phase 2 — Re-rank by 70 % cosine similarity + 30 % BM25-style ts_rank.
 --              ts_rank is scaled ×10 then capped at 1.0 so both components
 --              live on the same 0–1 scale before blending.
