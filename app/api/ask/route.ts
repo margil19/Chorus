@@ -157,7 +157,7 @@ function stripFences(raw: string): string {
 async function rewriteQuery(question: string): Promise<string> {
   try {
     const msg = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250514',
+      model: 'claude-sonnet-4-5',
       max_tokens: 120,
       messages: [
         {
@@ -375,7 +375,7 @@ export async function POST(req: NextRequest) {
     })
 
     const claudeStream = anthropic.messages.stream({
-      model: 'claude-sonnet-4-5-20250514',
+      model: 'claude-sonnet-4-5',
       max_tokens: 900,
       system: [{ type: 'text', text: SYNTHESIS_SYSTEM, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: buildUserPrompt(queryToEmbed, context) }],
