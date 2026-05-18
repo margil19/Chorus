@@ -279,11 +279,16 @@ export async function POST(req: NextRequest) {
   }
 
   return sseResponse(async (enqueue) => {
+    const t0 = Date.now()
+    const lap = (label: string) => console.log(`[ask] ${label}: ${Date.now() - t0}ms`)
+
     // 1. Optionally rewrite query for better retrieval
     const queryToEmbed = skipRewrite ? question : await rewriteQuery(question)
+    lap('rewrite')
 
     // 2. Embed the (possibly rewritten) query
     const embedding = await embedQuery(queryToEmbed)
+    lap('embed')
 
     // 3. Hybrid search — reduced match_count for faster DB scan
     const { data: rawChunks, error: rpcError } = await supabase.rpc(
@@ -294,6 +299,7 @@ export async function POST(req: NextRequest) {
         match_count: 10,
       }
     )
+    lap('supabase')
 
     if (rpcError) {
       console.error('Supabase RPC error:', rpcError)
@@ -345,6 +351,7 @@ export async function POST(req: NextRequest) {
       guest_count: uniqueGuests,
       rewritten_query: queryToEmbed,
     })
+    lap('sources_sent')
 
     // 7. Claude synthesis — system message is prompt-cached across requests
     const context = buildContext(topChunks)
@@ -363,6 +370,7 @@ export async function POST(req: NextRequest) {
       ],
     })
 
+    lap('claude')
     const raw =
       message.content[0].type === 'text' ? message.content[0].text : ''
 
@@ -393,5 +401,6 @@ export async function POST(req: NextRequest) {
 
     // 8. Send completed synthesis
     enqueue('done', response)
+    lap('total')
   })
 }
