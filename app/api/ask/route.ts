@@ -112,7 +112,7 @@ Rules:
 - Every section names at least one guest in **bold**
 - No walls of text — each section is 2–3 sentences max
 - bottom_line must be ≤ 25 words and start with an imperative verb
-- voices must have one entry per guest in the context, in the order they appear
+- voices must have one entry per guest in the context, in order — maximum 4 entries
 - Each voice summary directly answers the user's question from that specific guest's perspective only
 - relevant: true if the guest's excerpt directly addresses the question; false if only tangentially \
 related or requires significant inference. Be strict — mark false if the content required \
@@ -327,7 +327,7 @@ export async function POST(req: NextRequest) {
         seen.add(chunk.guest)
         topChunks.push(chunk)
       }
-      if (topChunks.length === 8) break
+      if (topChunks.length === 4) break
     }
 
     // 5. Build sources
@@ -356,8 +356,8 @@ export async function POST(req: NextRequest) {
     // 7. Claude synthesis — system message is prompt-cached across requests
     const context = buildContext(topChunks)
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
+      model: 'claude-haiku-3-5-20241022',
+      max_tokens: 900,
       system: [
         {
           type: 'text',
