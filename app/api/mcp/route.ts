@@ -124,14 +124,27 @@ async function embedQuery(query: string): Promise<number[]> {
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
-function requireAuth(req: NextRequest): Response | null {
+async function deriveAccessToken(apiKey: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(apiKey),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('chorus-mcp-access-token-v1'))
+  return Buffer.from(sig).toString('hex')
+}
+
+async function requireAuth(req: NextRequest): Promise<Response | null> {
   const apiKey = process.env.MCP_API_KEY
   if (!apiKey) {
     return Response.json({ error: 'MCP_API_KEY not configured' }, { status: 500 })
   }
-  const bearer = req.headers.get('authorization') ?? ''
+  const bearerMatch = (req.headers.get('authorization') ?? '').replace(/^Bearer /, '')
   const xApiKey = req.headers.get('x-api-key') ?? ''
-  if (bearer !== `Bearer ${apiKey}` && xApiKey !== apiKey) {
+  const oauthToken = await deriveAccessToken(apiKey)
+  if (bearerMatch !== apiKey && bearerMatch !== oauthToken && xApiKey !== apiKey) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
   return null
@@ -376,19 +389,19 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
 // ── Route exports ─────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
-  const err = requireAuth(req)
+  const err = await requireAuth(req)
   if (err) return err
   return handleMcpRequest(req)
 }
 
 export async function POST(req: NextRequest) {
-  const err = requireAuth(req)
+  const err = await requireAuth(req)
   if (err) return err
   return handleMcpRequest(req)
 }
 
 export async function DELETE(req: NextRequest) {
-  const err = requireAuth(req)
+  const err = await requireAuth(req)
   if (err) return err
   return handleMcpRequest(req)
 }
