@@ -129,8 +129,9 @@ function requireAuth(req: NextRequest): Response | null {
   if (!apiKey) {
     return Response.json({ error: 'MCP_API_KEY not configured' }, { status: 500 })
   }
-  const auth = req.headers.get('authorization') ?? ''
-  if (auth !== `Bearer ${apiKey}`) {
+  const bearer = req.headers.get('authorization') ?? ''
+  const xApiKey = req.headers.get('x-api-key') ?? ''
+  if (bearer !== `Bearer ${apiKey}` && xApiKey !== apiKey) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
   return null
