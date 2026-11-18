@@ -333,7 +333,7 @@ function LoadingState() {
     <div className="mt-6 space-y-5 animate-fade-in">
       <div className="flex items-center gap-2">
         <span className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
-          Thinking across 270 episodes
+          Thinking across 288 episodes
         </span>
         <span className="flex items-center gap-1 pt-0.5">
           {[0, 1, 2].map((i) => (
@@ -1095,7 +1095,7 @@ export default function Home() {
               Chorus
             </h1>
             <p style={{ color: '#737373', fontSize: '14px', marginTop: '0.5rem', marginBottom: 0 }}>
-              270 podcast episodes. One place to think.
+              288 podcast episodes. One place to think.
             </p>
 
             {guestFilter && (
@@ -1161,7 +1161,7 @@ export default function Home() {
               </div>
               <div style={{ padding: '1.5rem 2rem 2rem' }}>
                 <p style={{ color: 'white', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>The Brain</p>
-                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px', lineHeight: 1.5, marginBottom: '1.25rem' }}>Ask anything across 270 episodes</p>
+                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px', lineHeight: 1.5, marginBottom: '1.25rem' }}>Ask anything across 288 episodes</p>
                 <a href="/ask" onClick={(e) => e.stopPropagation()}
                   style={{ color: '#E8543A', fontSize: '13px', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
                   Ask anything →

@@ -387,7 +387,7 @@ function LoadingState() {
   }, [])
   return (
     <div style={{ textAlign: 'center', padding: '4rem 0', color: '#737373', fontSize: '14px', fontFamily: FONT }}>
-      Thinking across 270 episodes{'.'.repeat(dots)}
+      Thinking across 288 episodes{'.'.repeat(dots)}
     </div>
   )
 }
@@ -648,7 +648,7 @@ export default function AskPage() {
                 The Brain
               </h1>
               <p style={{ color: '#737373', fontSize: '15px', marginBottom: '2.5rem', textAlign: 'center' }}>
-                Ask anything across 270 episodes
+                Ask anything across 288 episodes
               </p>
 
               {/* Search bar */}

@@ -60,7 +60,7 @@ function buildMcpServer(): McpServer {
     {
       title: 'Ask Chorus',
       description:
-        'Ask any question about product management, growth, or leadership and get a synthesized answer drawn from 270 episodes of Lenny\'s Podcast. Runs the full pipeline: semantic search → rerank → Claude synthesis.',
+        'Ask any question about product management, growth, or leadership and get a synthesized answer drawn from 288 episodes of Lenny\'s Podcast. Runs the full pipeline: semantic search → rerank → Claude synthesis.',
       inputSchema: {
         question: z.string().describe('The question to ask'),
       },
@@ -95,7 +95,7 @@ function buildMcpServer(): McpServer {
     {
       title: 'Search Chorus',
       description:
-        "Semantic search across 270 episodes of Lenny's Podcast. Returns relevant transcript passages with guest and episode info. Use this when you want raw excerpts rather than a synthesized answer.",
+        "Semantic search across 288 episodes of Lenny's Podcast. Returns relevant transcript passages with guest and episode info. Use this when you want raw excerpts rather than a synthesized answer.",
       inputSchema: {
         query: z.string().describe('Search query'),
         limit: z

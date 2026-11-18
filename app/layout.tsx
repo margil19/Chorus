@@ -19,7 +19,7 @@ const dmSerifDisplay = DM_Serif_Display({
 
 export const metadata: Metadata = {
   title: "Chorus",
-  description: "Wisdom from 270 of the world's best product minds",
+  description: "Wisdom from 277 of the world's best product minds",
 }
 
 export default function RootLayout({
