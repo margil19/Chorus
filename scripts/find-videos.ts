@@ -39,7 +39,7 @@ async function youtubeSearch(query: string, attempt = 1): Promise<Candidate[]> {
     console.warn(`  search failed for "${query}": ${(err as Error).message}`)
     return []
   }
-  const json = html.match(/var ytInitialData = (\{.*?\});<\/script>/s)?.[1]
+  const json = html.match(/var ytInitialData = (\{[\s\S]*?\});<\/script>/)?.[1]
   if (!json) return []
   const out: Candidate[] = []
   const walk = (o: unknown) => {
