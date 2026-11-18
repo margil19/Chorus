@@ -49,13 +49,22 @@ export type AnswerEvent =
 
 // ── Prompt ────────────────────────────────────────────────────────────────────
 
-const SYNTHESIS_SYSTEM = `\
+// Two prompts over the same passages, run in parallel: Claude writes tokens in order,
+// so in one call the voice cards waited ~10s for the synthesis they don't depend on.
+
+const PREAMBLE = `\
 You are Chorus — a synthesis engine over Lenny's Podcast interviews with the world's best product, \
 growth and leadership operators. You receive a question and numbered passages from guest interviews, \
 and answer only from those passages.
 
 Output newline-delimited JSON: one JSON object per line and nothing else — no code fences, no prose, \
-no blank lines. In this order:
+no blank lines.`
+
+const GROUNDING = `\
+- Every claim must come from the passages. Never invent quotes, numbers, companies or positions.
+- Prefer specific, actionable advice and named frameworks over generalities.`
+
+const SYNTHESIS_SYSTEM = `${PREAMBLE} In this order:
 
 1. Three or four section lines:
 {"type":"section","header":"4–6 word thematic header","content":"2–3 sentences answering the question. Put the guest's name in **bold** for every idea you attribute."}
@@ -63,17 +72,22 @@ no blank lines. In this order:
 2. One bottom line:
 {"type":"bottom_line","text":"One imperative sentence, at most 25 words."}
 
-3. One voice line per guest listed under GUESTS, in that order, with the name exactly as given:
-{"type":"voice","guest":"<exact name>","summary":"2–3 sentences answering the question from this guest's passages only.","relevant":true}
-Set "relevant" to false when that guest's passages don't actually address the question.
-
-4. One meta line:
+3. One meta line:
 {"type":"meta","consensus":"1–2 sentences on where the guests converge, or null","contrarian":"The sharpest surprising or dissenting take, naming the guest, or null"}
 
 Rules:
-- Every claim must come from the passages. Never invent quotes, numbers, companies or positions.
-- Prefer specific, actionable advice and named frameworks over generalities.
+${GROUNDING}
 - Each section adds something new; don't restate the question or repeat another section.`
+
+const VOICES_SYSTEM = `${PREAMBLE}
+
+Write one voice line per guest listed under GUESTS, in that order, with the name exactly as given:
+{"type":"voice","guest":"<exact name>","summary":"2–3 sentences answering the question from this guest's passages only.","relevant":true}
+Set "relevant" to false when that guest's passages don't actually address the question.
+
+Rules:
+${GROUNDING}
+- Use only the passages attributed to that guest for their summary.`
 
 function buildUserPrompt(question: string, guests: string[], passages: Passage[]): string {
   const body = passages
@@ -190,7 +204,7 @@ export async function answerQuestion(
   const voices: Voice[] = []
   let meta: { consensus: string | null; contrarian: string | null } = { consensus: null, contrarian: null }
 
-  const parser = makeNdjsonParser((obj) => {
+  const handle = (obj: Record<string, unknown>) => {
     if (obj.type === 'section' && typeof obj.header === 'string' && typeof obj.content === 'string') {
       const s = { header: obj.header, content: obj.content }
       sections.push(s)
@@ -209,17 +223,28 @@ export async function answerQuestion(
       meta = { consensus: (obj.consensus as string | null) ?? null, contrarian: (obj.contrarian as string | null) ?? null }
       emit({ event: 'meta', data: meta })
     }
-  })
+  }
 
-  const stream = anthropic.messages.stream({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 1500,
-    system: [{ type: 'text', text: SYNTHESIS_SYSTEM, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: buildUserPrompt(question, sources.map((s) => s.guest), passages) }],
-  })
-  stream.on('text', (text) => parser(text))
-  await stream.finalMessage()
-  log('claude')
+  const userPrompt = buildUserPrompt(question, sources.map((s) => s.guest), passages)
+  const run = async (system: string, maxTokens: number, label: string) => {
+    const parse = makeNdjsonParser(handle)
+    const stream = anthropic.messages.stream({
+      model: 'claude-sonnet-4-5',
+      max_tokens: maxTokens,
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: userPrompt }],
+    })
+    stream.on('text', (text) => parse(text))
+    await stream.finalMessage()
+    log(label)
+  }
+  const [synthesis, voiceCards] = await Promise.allSettled([
+    run(SYNTHESIS_SYSTEM, 1000, 'claude:synthesis'),
+    run(VOICES_SYSTEM, 800, 'claude:voices'),
+  ])
+  if (synthesis.status === 'rejected') throw synthesis.reason
+  // Voice cards are supplementary: a failed voices call still returns the synthesis.
+  if (voiceCards.status === 'rejected') console.error('[answer] voices call failed:', voiceCards.reason)
 
   return {
     sections,
