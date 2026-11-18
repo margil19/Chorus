@@ -4,6 +4,8 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import * as z from 'zod/v4'
+import { answerQuestion, buildYouTubeUrl } from '@/lib/answer'
+import { retrieve } from '@/lib/retrieval'
 
 // ── Clients ──────────────────────────────────────────────────────────────────
 
@@ -13,115 +15,6 @@ const supabase = createClient(
 )
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface ChunkMatch {
-  chunk_id: string
-  episode_id: string
-  speaker: string
-  is_guest: boolean
-  timestamp_start: string
-  text: string
-  similarity: number
-  guest: string
-  title: string
-  youtube_url: string
-  video_id: string
-  mental_models: string[] | null
-  key_quotes: string[] | null
-}
-
-// ── Prompts ───────────────────────────────────────────────────────────────────
-
-const SYNTHESIS_SYSTEM = `\
-You are Lenny's Brain — a synthesis engine built on 300+ conversations from Lenny's Podcast, \
-the world's leading resource for product managers and growth leaders.
-
-Output your response as newline-delimited JSON (NDJSON). \
-Each JSON object must be on a single line with no line breaks inside it. \
-Output exactly in this order with nothing else:
-
-Line 1 — synthesis:
-{"type":"synthesis","sections":[{"header":"4–6 word thematic header","content":"2–3 sentences. Use **Guest Name** attribution for at least one guest per section."}],"bottom_line":"One imperative sentence ≤25 words."}
-
-Lines 2–N — one voice per guest in context order (max 4):
-{"type":"voice","guest":"Exact guest name","summary":"2–3 sentences directly answering the question from this guest's perspective only.","relevant":true}
-
-Final line — meta:
-{"type":"meta","consensus":"1–2 sentences on what guests converge on, or null","contrarian":"Sharpest surprising take naming the guest, or null"}
-
-Rules:
-- Exactly 3–4 sections in the synthesis object
-- Every section attributes at least one guest in **bold**
-- 2–3 sentences max per section, no padding
-- bottom_line starts with an imperative verb, ≤25 words
-- One voice entry per guest in context, max 4 total
-- relevant: true if the excerpt directly addresses the question; false if only tangential
-- No markdown fences, no text outside the JSON objects, no blank lines between objects`
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function timestampToSeconds(ts: string): number {
-  if (!ts) return 0
-  const parts = ts.split(':').map(Number)
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
-  if (parts.length === 2) return parts[0] * 60 + parts[1]
-  return 0
-}
-
-function buildYouTubeUrl(videoId: string | null, timestamp: string): string {
-  if (!videoId) return ''
-  const t = timestampToSeconds(timestamp)
-  const base = `https://www.youtube.com/watch?v=${videoId}`
-  return t > 0 ? `${base}&t=${t}` : base
-}
-
-function buildContext(chunks: ChunkMatch[]): string {
-  return chunks
-    .map(
-      (c) =>
-        `[${c.guest} — "${c.title.slice(0, 70)}${c.title.length > 70 ? '…' : ''}"]\n"${c.text.slice(0, 400)}${c.text.length > 400 ? '…' : ''}"`
-    )
-    .join('\n\n')
-}
-
-async function rewriteQuery(question: string): Promise<string> {
-  try {
-    const msg = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 120,
-      messages: [
-        {
-          role: 'user',
-          content:
-            'Rewrite this question to be more specific and searchable for retrieval from podcast transcripts about product management, growth, and leadership. Return only the rewritten query, nothing else.\n\nQuestion: ' +
-            question,
-        },
-      ],
-    })
-    const text = msg.content[0].type === 'text' ? msg.content[0].text.trim() : ''
-    return text || question
-  } catch {
-    return question
-  }
-}
-
-async function embedQuery(query: string): Promise<number[]> {
-  const res = await fetch('https://api.voyageai.com/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.VOYAGE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ model: 'voyage-3-large', input: [query] }),
-  })
-  if (!res.ok) {
-    throw new Error(`Voyage API error ${res.status}: ${await res.text()}`)
-  }
-  const data = (await res.json()) as { data: { embedding: number[] }[] }
-  return data.data[0].embedding
-}
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -153,6 +46,11 @@ async function requireAuth(req: NextRequest): Promise<Response | null> {
 
 // ── MCP Server factory ────────────────────────────────────────────────────────
 
+const errorResult = (err: unknown) => ({
+  content: [{ type: 'text' as const, text: `Error: ${(err as Error).message}` }],
+  isError: true,
+})
+
 function buildMcpServer(): McpServer {
   const mcp = new McpServer({ name: 'chorus-mcp', version: '1.0.0' })
 
@@ -162,86 +60,31 @@ function buildMcpServer(): McpServer {
     {
       title: 'Ask Chorus',
       description:
-        'Ask any question about product management, growth, or leadership and get a synthesized answer drawn from 270 episodes of Lenny\'s Podcast. Runs the full pipeline: query rewrite → semantic search → Claude synthesis.',
+        'Ask any question about product management, growth, or leadership and get a synthesized answer drawn from 270 episodes of Lenny\'s Podcast. Runs the full pipeline: semantic search → rerank → Claude synthesis.',
       inputSchema: {
         question: z.string().describe('The question to ask'),
       },
     },
     async ({ question }) => {
       try {
-        const rewritten = await rewriteQuery(question)
-        const embedding = await embedQuery(rewritten)
-
-        const { data: rawChunks, error: rpcError } = await supabase.rpc('match_chunks', {
-          query_embedding: embedding,
-          query_text: rewritten,
-          match_count: 10,
-        })
-
-        if (rpcError) {
-          return { content: [{ type: 'text' as const, text: `Search error: ${rpcError.message}` }], isError: true }
-        }
-
-        const chunks = (rawChunks ?? []) as ChunkMatch[]
-        if (chunks.length === 0) {
+        const answer = await answerQuestion(supabase, anthropic, question)
+        if (!answer) {
           return { content: [{ type: 'text' as const, text: 'No relevant content found for this question.' }] }
         }
 
-        // Dedup — top 4 unique guests
-        const seen = new Set<string>()
-        const topChunks: ChunkMatch[] = []
-        for (const chunk of chunks) {
-          if (!seen.has(chunk.guest)) { seen.add(chunk.guest); topChunks.push(chunk) }
-          if (topChunks.length === 4) break
-        }
-
-        // Claude synthesis (non-streaming for MCP)
-        const msg = await anthropic.messages.create({
-          model: 'claude-sonnet-4-5',
-          max_tokens: 900,
-          system: [{ type: 'text', text: SYNTHESIS_SYSTEM, cache_control: { type: 'ephemeral' } }],
-          messages: [{ role: 'user', content: `A product leader has asked: "${rewritten}"\n\nBelow are the most relevant insights from past guest interviews:\n\n${buildContext(topChunks)}\n\nWrite a high-signal answer using only these excerpts.` }],
-        })
-
-        const raw = msg.content[0].type === 'text' ? msg.content[0].text : ''
-
-        // Parse NDJSON output
-        type SynthesisObj = { type: 'synthesis'; sections: { header: string; content: string }[]; bottom_line: string }
-        type VoiceObj = { type: 'voice'; guest: string; summary: string; relevant: boolean }
-        type MetaObj = { type: 'meta'; consensus: string | null; contrarian: string | null }
-
-        let synthesis: SynthesisObj | null = null
-        const voices: VoiceObj[] = []
-        let meta: MetaObj | null = null
-
-        for (const line of raw.split('\n')) {
-          if (!line.trim()) continue
-          try {
-            const obj = JSON.parse(line.trim()) as { type: string }
-            if (obj.type === 'synthesis') synthesis = obj as SynthesisObj
-            else if (obj.type === 'voice') voices.push(obj as VoiceObj)
-            else if (obj.type === 'meta') meta = obj as MetaObj
-          } catch { /* skip malformed lines */ }
-        }
-
-        // Format as readable markdown
-        const lines: string[] = [`**Query:** ${rewritten}`, '']
-
-        for (const section of (synthesis?.sections ?? [])) {
-          lines.push(`### ${section.header}`, section.content, '')
-        }
-        if (synthesis?.bottom_line) lines.push(`**Bottom line:** ${synthesis.bottom_line}`, '')
-        if (meta?.consensus) lines.push(`**Consensus:** ${meta.consensus}`, '')
-        if (meta?.contrarian) lines.push(`**Contrarian take:** ${meta.contrarian}`, '')
-
+        const lines: string[] = []
+        for (const section of answer.sections) lines.push(`### ${section.header}`, section.content, '')
+        if (answer.bottom_line) lines.push(`**Bottom line:** ${answer.bottom_line}`, '')
+        if (answer.consensus) lines.push(`**Consensus:** ${answer.consensus}`, '')
+        if (answer.contrarian) lines.push(`**Contrarian take:** ${answer.contrarian}`, '')
         lines.push('**Sources:**')
-        for (const c of topChunks) {
-          lines.push(`- **${c.guest}** — "${c.title}"\n  ${buildYouTubeUrl(c.video_id, c.timestamp_start)}`)
+        for (const s of answer.sources) {
+          lines.push(`- **${s.guest}** — "${s.episode_title}"${s.youtube_url ? `\n  ${s.youtube_url}` : ''}`)
         }
 
         return { content: [{ type: 'text' as const, text: lines.join('\n') }] }
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: `Error: ${(err as Error).message}` }], isError: true }
+        return errorResult(err)
       }
     }
   )
@@ -252,7 +95,7 @@ function buildMcpServer(): McpServer {
     {
       title: 'Search Chorus',
       description:
-        "Semantic search across 270 episodes of Lenny's Podcast. Returns relevant transcript chunks with guest and episode info. Use this when you want raw excerpts rather than a synthesized answer.",
+        "Semantic search across 270 episodes of Lenny's Podcast. Returns relevant transcript passages with guest and episode info. Use this when you want raw excerpts rather than a synthesized answer.",
       inputSchema: {
         query: z.string().describe('Search query'),
         limit: z
@@ -266,33 +109,22 @@ function buildMcpServer(): McpServer {
     },
     async ({ query, limit = 5 }) => {
       try {
-        const embedding = await embedQuery(query)
-
-        const { data: rawChunks, error } = await supabase.rpc('match_chunks', {
-          query_embedding: embedding,
-          query_text: query,
-          match_count: limit,
-        })
-
-        if (error) {
-          return { content: [{ type: 'text' as const, text: `Search error: ${error.message}` }], isError: true }
-        }
-
-        const chunks = (rawChunks ?? []) as ChunkMatch[]
+        const { chunks } = await retrieve(supabase, query, { limit, maxPerGuest: limit })
         if (chunks.length === 0) {
           return { content: [{ type: 'text' as const, text: 'No results found.' }] }
         }
 
         const text = chunks
-          .map(
-            (c, i) =>
-              `${i + 1}. **${c.guest}** — "${c.title}"\n   ${buildYouTubeUrl(c.video_id, c.timestamp_start)}\n   > "${c.text.slice(0, 300)}${c.text.length > 300 ? '…' : ''}"\n   Similarity: ${c.similarity.toFixed(3)}`
-          )
+          .map((c, i) => {
+            const url = buildYouTubeUrl(c.video_id, c.timestamp_start)
+            const asked = c.question ? `   Lenny asked: "${c.question}"\n` : ''
+            return `${i + 1}. **${c.guest}** — "${c.title}"${url ? `\n   ${url}` : ''}\n${asked}   > "${c.text}"\n   Relevance: ${(c.rerank_score ?? 0).toFixed(3)}`
+          })
           .join('\n\n')
 
         return { content: [{ type: 'text' as const, text }] }
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: `Error: ${(err as Error).message}` }], isError: true }
+        return errorResult(err)
       }
     }
   )
@@ -316,15 +148,13 @@ function buildMcpServer(): McpServer {
           .ilike('guest', `%${name}%`)
           .order('publish_date', { ascending: false })
 
-        if (error) {
-          return { content: [{ type: 'text' as const, text: `Error: ${error.message}` }], isError: true }
-        }
+        if (error) return errorResult(error)
 
         if (!data || data.length === 0) {
           return { content: [{ type: 'text' as const, text: `No guest found matching "${name}". Try list_guests to see all available guests.` }] }
         }
 
-        const episodes = data as { guest: string; title: string; youtube_url: string; video_id: string; publish_date: string; description: string }[]
+        const episodes = data as { guest: string; title: string; youtube_url: string | null; video_id: string | null; publish_date: string; description: string }[]
         const guestName = episodes[0].guest
         const lines = [`**${guestName}** — ${episodes.length} episode(s)`, '']
 
@@ -337,7 +167,7 @@ function buildMcpServer(): McpServer {
 
         return { content: [{ type: 'text' as const, text: lines.join('\n') }] }
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: `Error: ${(err as Error).message}` }], isError: true }
+        return errorResult(err)
       }
     }
   )
@@ -357,9 +187,7 @@ function buildMcpServer(): McpServer {
           .select('guest')
           .order('guest', { ascending: true })
 
-        if (error) {
-          return { content: [{ type: 'text' as const, text: `Error: ${error.message}` }], isError: true }
-        }
+        if (error) return errorResult(error)
 
         const seen = new Set<string>()
         const guests: string[] = []
@@ -371,7 +199,7 @@ function buildMcpServer(): McpServer {
           content: [{ type: 'text' as const, text: `${guests.length} guests in the database:\n\n${guests.join('\n')}` }],
         }
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: `Error: ${(err as Error).message}` }], isError: true }
+        return errorResult(err)
       }
     }
   )

@@ -9,7 +9,7 @@ import type {
   Source,
   GuestContext,
   Voice,
-} from '../api/ask/route'
+} from '@/lib/answer'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -529,9 +529,10 @@ export default function AskPage() {
                 setSources(data.sources as Source[])
                 setLoading(false)
                 setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-              } else if (currentEvent === 'synthesis') {
-                setStreamSections(data.sections as AnswerSection[])
-                setStreamBottomLine(data.bottom_line as string)
+              } else if (currentEvent === 'section') {
+                setStreamSections((prev) => [...(prev ?? []), data as AnswerSection])
+              } else if (currentEvent === 'bottom_line') {
+                setStreamBottomLine(data.text as string)
               } else if (currentEvent === 'voice') {
                 setStreamVoices((prev) => [...prev, data as Voice])
               } else if (currentEvent === 'meta') {
@@ -770,12 +771,14 @@ export default function AskPage() {
                       : <SynthesisCard sections={streamSections} bottomLine={streamBottomLine ?? ''} />
                     }
 
-                    {/* Voice cards — real ones animate in one by one, rest stay skeleton */}
+                    {/* Voice cards — matched to sources by guest; skeleton until that guest's voice
+                        arrives, hidden once the answer is done if the guest wasn't relevant */}
                     <div>
                       <p style={{ ...SECTION_LABEL_STYLE, marginBottom: '0.75rem' }}>Voices</p>
                       <div className="flex flex-col gap-6">
                         {sources.map((source, i) => {
-                          const voice = streamVoices[i]
+                          const voice = streamVoices.find((v) => v.guest === source.guest)
+                          if (voice && !voice.relevant) return null
                           if (voice) {
                             return (
                               <VoiceCard
@@ -788,7 +791,7 @@ export default function AskPage() {
                               />
                             )
                           }
-                          return <EarlySourceCard key={i} source={source} />
+                          return response ? null : <EarlySourceCard key={i} source={source} />
                         })}
                       </div>
                     </div>

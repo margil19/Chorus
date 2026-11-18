@@ -3,9 +3,10 @@
  * results to lib/precomputed-answers.json.
  *
  * Usage:
- *   npm run precompute          (server must be running at localhost:3000)
+ *   npm run precompute                 (dev server must be running at localhost:3000)
+ *   npm run precompute -- --refresh    (regenerate every answer, not just missing ones)
  *
- * Existing entries are loaded first — only missing questions are fetched.
+ * Existing entries are loaded first — only missing questions are fetched unless --refresh.
  */
 
 import fs from 'fs'
@@ -59,20 +60,24 @@ function loadExisting(): Record<string, unknown> {
   return {}
 }
 
+/** Reads the SSE stream from /api/ask and returns the payload of its `done` event. */
 async function fetchAnswer(question: string): Promise<unknown> {
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, skipRewrite: true }),
+    body: JSON.stringify({ question, fresh: true }),
   })
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`)
 
-  const data = (await res.json()) as Record<string, unknown>
-
-  if (!res.ok) {
-    throw new Error(String(data.error ?? `HTTP ${res.status}`))
+  const body = await res.text()
+  for (const block of body.split('\n\n')) {
+    const event = block.match(/^event: (.+)$/m)?.[1]
+    const data = block.match(/^data: (.+)$/m)?.[1]
+    if (!event || !data) continue
+    if (event === 'error') throw new Error((JSON.parse(data) as { message: string }).message)
+    if (event === 'done') return JSON.parse(data)
   }
-
-  return data
+  throw new Error('stream ended without a done event')
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -84,9 +89,10 @@ async function main() {
     console.log(`📁 Created ${LIB_DIR}`)
   }
 
+  const refresh = process.argv.includes('--refresh')
   const answers = loadExisting()
   const total = QUESTIONS.length
-  const pending = QUESTIONS.filter((q) => !(q in answers))
+  const pending = refresh ? QUESTIONS : QUESTIONS.filter((q) => !(q in answers))
 
   console.log(`\n🧠  Pre-computing answers`)
   console.log(`   Total questions : ${total}`)

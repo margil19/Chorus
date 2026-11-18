@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
+import { embedQuery, searchGuestChunks, rerank, type RetrievedChunk } from '@/lib/retrieval'
+import { buildYouTubeUrl } from '@/lib/answer'
 
 // ── Clients ───────────────────────────────────────────────────────────────────
 
@@ -10,25 +12,6 @@ const supabase = createClient(
 )
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface DebateChunk {
-  chunk_id: string
-  episode_id: string
-  speaker: string
-  is_guest: boolean
-  timestamp_start: string
-  text: string
-  similarity: number
-  guest: string
-  title: string
-  youtube_url: string
-  video_id: string
-  mental_models: string[] | null
-  key_quotes: string[] | null
-  guest_context: unknown
-}
 
 export interface DebateSource {
   youtube_url: string
@@ -52,21 +35,6 @@ export interface DebateApiResponse {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function timestampToSeconds(ts: string): number {
-  if (!ts) return 0
-  const parts = ts.split(':').map(Number)
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
-  if (parts.length === 2) return parts[0] * 60 + parts[1]
-  return 0
-}
-
-function buildYouTubeUrl(videoId: string | null, timestamp: string): string {
-  if (!videoId) return ''
-  const t = timestampToSeconds(timestamp)
-  const base = `https://www.youtube.com/watch?v=${videoId}`
-  return t > 0 ? `${base}&t=${t}` : base
-}
-
 function stripFences(raw: string): string {
   return raw
     .replace(/^```(?:json)?\s*/i, '')
@@ -74,30 +42,19 @@ function stripFences(raw: string): string {
     .trim()
 }
 
-async function embedQuery(query: string): Promise<number[]> {
-  const res = await fetch('https://api.voyageai.com/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.VOYAGE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ model: 'voyage-3-large', input: [query] }),
-  })
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`Voyage API error ${res.status}: ${body}`)
-  }
-  const data = (await res.json()) as { data: { embedding: number[] }[] }
-  return data.data[0].embedding
+function buildGuestContext(chunks: RetrievedChunk[]): string {
+  return chunks
+    .map((c) => {
+      const asked = c.question ? `Lenny asked: "${c.question}"\n` : ''
+      return `[${c.guest} — "${c.title.slice(0, 70)}${c.title.length > 70 ? '…' : ''}"]\n${asked}"${c.text}"`
+    })
+    .join('\n\n')
 }
 
-function buildGuestContext(chunks: DebateChunk[]): string {
-  return chunks
-    .map(
-      (c) =>
-        `[${c.guest} — "${c.title.slice(0, 70)}${c.title.length > 70 ? '…' : ''}"]\n"${c.text.slice(0, 500)}${c.text.length > 500 ? '…' : ''}"`
-    )
-    .join('\n\n')
+/** A guest's passages most relevant to the question: nearest 20 of theirs, reranked to 5. */
+async function guestPassages(embedding: number[], question: string, guest: string): Promise<RetrievedChunk[]> {
+  const nearest = await searchGuestChunks(supabase, embedding, guest, 20)
+  return (await rerank(question, nearest)).slice(0, 5)
 }
 
 // ── Prompt ────────────────────────────────────────────────────────────────────
@@ -232,33 +189,10 @@ export async function POST(req: NextRequest) {
     // Embed once — both guests share the same question embedding
     const embedding = await embedQuery(question)
 
-    // Fetch both guests' chunks in parallel
-    const [result1, result2] = await Promise.all([
-      supabase.rpc('match_chunks', {
-        query_embedding: embedding,
-        query_text: question,
-        match_count: 15,
-        guest_filter: guest1,
-      }),
-      supabase.rpc('match_chunks', {
-        query_embedding: embedding,
-        query_text: question,
-        match_count: 15,
-        guest_filter: guest2,
-      }),
+    const [chunks1, chunks2] = await Promise.all([
+      guestPassages(embedding, question, guest1),
+      guestPassages(embedding, question, guest2),
     ])
-
-    if (result1.error) {
-      console.error('Supabase RPC error (guest1):', result1.error)
-      return Response.json({ error: 'Vector search failed for guest 1.' }, { status: 500 })
-    }
-    if (result2.error) {
-      console.error('Supabase RPC error (guest2):', result2.error)
-      return Response.json({ error: 'Vector search failed for guest 2.' }, { status: 500 })
-    }
-
-    const chunks1 = ((result1.data ?? []) as DebateChunk[]).slice(0, 5)
-    const chunks2 = ((result2.data ?? []) as DebateChunk[]).slice(0, 5)
 
     if (chunks1.length === 0) {
       return Response.json(

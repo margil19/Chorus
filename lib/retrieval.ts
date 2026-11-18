@@ -55,6 +55,66 @@ export async function searchChunks(
   return (data ?? []) as RetrievedChunk[]
 }
 
+/** Nearest chunks from one guest's episodes (exact scan; for debate). */
+export async function searchGuestChunks(
+  supabase: SupabaseClient,
+  embedding: number[],
+  guest: string,
+  matchCount = 20
+): Promise<RetrievedChunk[]> {
+  const { data, error } = await supabase.rpc('match_guest_chunks_v2', {
+    query_embedding: embedding,
+    guest_name: guest,
+    match_count: matchCount,
+  })
+  if (error) throw new Error(`match_guest_chunks_v2: ${error.message}`)
+  return (data ?? []) as RetrievedChunk[]
+}
+
+const NEIGHBOR_CHARS = 600
+
+/** Joins two consecutive windows, dropping the sentences they share (windows overlap ~200 chars). */
+function joinWindows(a: string, b: string): string {
+  for (let k = Math.min(a.length, b.length, 600); k >= 20; k--) {
+    if (a.endsWith(b.slice(0, k))) return a + b.slice(k)
+  }
+  return `${a} ${b}`
+}
+
+export interface Passage { chunk: RetrievedChunk; text: string }
+
+/**
+ * Small-to-big: each retrieved window is widened with the tail of the previous and the
+ * head of the next window from the same answer, so the model sees the argument around
+ * the matched passage rather than a fragment.
+ */
+export async function expandToPassages(supabase: SupabaseClient, chunks: RetrievedChunk[]): Promise<Passage[]> {
+  if (chunks.length === 0) return []
+  const filter = chunks
+    .map((c) => `and(episode_id.eq.${c.episode_id},segment_index.eq.${c.segment_index},window_index.gte.${c.window_index - 1},window_index.lte.${c.window_index + 1})`)
+    .join(',')
+  const { data, error } = await supabase
+    .from('chunks_v2')
+    .select('episode_id, segment_index, window_index, text')
+    .or(filter)
+  if (error) throw new Error(`expandToPassages: ${error.message}`)
+  const byKey = new Map(
+    (data as { episode_id: string; segment_index: number; window_index: number; text: string }[])
+      .map((r) => [`${r.episode_id}:${r.segment_index}:${r.window_index}`, r.text])
+  )
+  return chunks.map((c) => {
+    const prev = byKey.get(`${c.episode_id}:${c.segment_index}:${c.window_index - 1}`)
+    const next = byKey.get(`${c.episode_id}:${c.segment_index}:${c.window_index + 1}`)
+    let text = c.text
+    if (prev) text = joinWindows(prev, text).slice(-(c.text.length + NEIGHBOR_CHARS)).replace(/^\S*\s/, '…')
+    if (next) {
+      const joined = joinWindows(text, next)
+      text = joined.length > text.length + NEIGHBOR_CHARS ? joined.slice(0, text.length + NEIGHBOR_CHARS).replace(/\s\S*$/, '…') : joined
+    }
+    return { chunk: c, text }
+  })
+}
+
 // Same context the chunk was embedded with: the host question only on an answer's first window.
 function rerankDocument(c: RetrievedChunk): string {
   const q = c.question && c.window_index === 0 ? `Lenny asked: "${c.question}"\n` : ''
