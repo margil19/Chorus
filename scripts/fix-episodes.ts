@@ -1,5 +1,5 @@
 /**
- * One-off repair of the episodes table (requires scripts/schema-v2-episodes.sql):
+ * One-off repair of the episodes table (requires the episodes.slug column in scripts/schema.sql):
  *  1. backfill `slug` on existing rows with the folder ingest.ts actually used
  *  2. move video_ids that YouTube says belong to another folder's episode
  *     (input: scripts/eval/transcript-audit.json from audit-transcripts.ts)
@@ -12,7 +12,8 @@ import fs from 'fs'
 import path from 'path'
 import matter from 'gray-matter'
 import Anthropic from '@anthropic-ai/sdk'
-import { supabase, TRANSCRIPTS_DIR, EVAL_DIR } from './eval/common'
+import { supabase, TRANSCRIPTS_DIR } from './lib/db'
+import { EVAL_DIR } from './eval/common'
 import { parseTranscript, mergeConsecutiveTurns } from './lib/transcript'
 
 // Not guest interviews: a promo, and a montage of many guests under one fake "guest".
@@ -61,7 +62,7 @@ async function main() {
   if (error) throw new Error(error.message)
   const episodes = (data as { id: string; guest: string; video_id: string | null; youtube_url: string | null; slug?: string | null }[])
     .map(({ id, guest, video_id, youtube_url, slug }) => ({ id, guest, video_id, youtube_url, slug: slug ?? null }))
-  if (apply && !('slug' in (data[0] ?? {}))) throw new Error('run scripts/schema-v2-episodes.sql first')
+  if (apply && !('slug' in (data[0] ?? {}))) throw new Error('add the episodes.slug column (scripts/schema.sql) first')
 
   // 1. Folder each existing row came from: ingest.ts keyed on (frontmatter.video_id ?? slug), first sorted folder wins.
   const keyToSlug = new Map<string, string>()

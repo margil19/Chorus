@@ -8,9 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "ingest": "tsx scripts/ingest.ts",
-    "reembed": "tsx scripts/reembed.ts",
-    "precompute": "npx tsx scripts/precompute-answers.ts",
-    "build-pattern-map": "npx tsx scripts/build-pattern-map.ts"
+    "precompute": "tsx scripts/precompute-answers.ts",
+    "rechunk": "tsx scripts/rechunk.ts",
+    "eval": "tsx scripts/eval/compare-rerank.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",

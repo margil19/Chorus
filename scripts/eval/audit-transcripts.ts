@@ -9,7 +9,8 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import matter from 'gray-matter'
-import { supabase, TRANSCRIPTS_DIR, EVAL_DIR } from './common'
+import { supabase, TRANSCRIPTS_DIR } from '../lib/db'
+import { EVAL_DIR } from './common'
 
 interface Folder { slug: string; guest: string; title: string; video_id: string; bodyHash: string; sh: Set<string> }
 

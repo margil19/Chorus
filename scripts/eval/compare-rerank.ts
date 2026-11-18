@@ -8,7 +8,9 @@
  *   npx tsx scripts/eval/compare-rerank.ts [--questions scripts/eval/questions-named.json]
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { supabase, questions, voyageEmbed } from './common'
+import { supabase } from '../lib/db'
+import { voyageEmbed } from '../lib/voyage'
+import { questions } from './common'
 import { searchChunks, rerank, diversify, peopleNamedIn, type RetrievedChunk } from '../../lib/retrieval'
 
 const K = 5

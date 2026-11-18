@@ -235,7 +235,7 @@ export type QuestionMode = 'all' | 'first' | 'none'
 /**
  * The text actually embedded: guest + episode give every window context. The host
  * question goes only on the first window — on later windows it pulled in passages
- * where the guest had moved on to another topic (scripts/eval/variants.ts).
+ * where the guest had moved on to another topic (blind eval during the chunks_v2 pilot).
  */
 export function embeddingText(guest: string, title: string, c: WindowChunk, questionMode: QuestionMode = 'first'): string {
   const include = c.question && (questionMode === 'all' || (questionMode === 'first' && c.window_index === 0))

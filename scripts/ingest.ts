@@ -1,39 +1,24 @@
 /**
- * Ingestion script: reads all podcast transcripts, enriches with Claude,
- * embeds with Voyage AI, and stores everything in Supabase.
+ * Ingests transcripts that aren't in the database yet: enriches each episode with
+ * Claude, then builds and embeds its chunks_v2 windows.
  *
- * Usage:
- *   npx tsx scripts/ingest.ts
- *   npx tsx scripts/ingest.ts --limit 5        # process first 5 episodes
- *   npx tsx scripts/ingest.ts --episode ada-chen-rekhi  # single episode slug
+ *   npm run ingest
+ *   npm run ingest -- --limit 5                 # first 5 transcript folders
+ *   npm run ingest -- --episode ada-chen-rekhi  # one folder (slug)
+ *
+ * Episodes are keyed by folder slug. A new folder that repeats an existing
+ * conversation is only caught by `npm run rechunk -- --all`, which skips duplicates.
  */
 
 import fs from 'fs'
 import path from 'path'
 import matter from 'gray-matter'
 import Anthropic from '@anthropic-ai/sdk'
-import { createClient } from '@supabase/supabase-js'
-import dotenv from 'dotenv'
 import { parseTranscript, mergeConsecutiveTurns, type Chunk } from './lib/transcript'
+import { writeEpisodeChunks } from './lib/chunks-v2'
+import { supabase, TRANSCRIPTS_DIR } from './lib/db'
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env.local') })
-
-// ---------------------------------------------------------------------------
-// Config
-// ---------------------------------------------------------------------------
-
-const TRANSCRIPTS_DIR =
-  process.env.TRANSCRIPTS_DIR ??
-  '/Users/margilgandhi/projects/lennys-podcast-transcripts/episodes'
-
-const VOYAGE_API_URL = 'https://api.voyageai.com/v1/embeddings'
-const VOYAGE_MODEL = 'voyage-3-large'
-const EMBED_BATCH_SIZE = 50     // texts per Voyage request
-const INTER_EPISODE_DELAY_MS = 500  // polite pause between episodes
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+const INTER_EPISODE_DELAY_MS = 500
 
 interface Frontmatter {
   guest: string
@@ -49,31 +34,14 @@ interface Frontmatter {
   keywords?: string[]
 }
 
-interface GuestContext {
-  industry: string
-  company_stage: string
-  guest_role: string
-  company: string
-  background: string
-}
-
 interface Enrichment {
-  guest_context: GuestContext
+  guest_context: { industry: string; company_stage: string; guest_role: string; company: string; background: string }
   mental_models: string[]
   key_quotes: string[]
   topic_depth_scores: Record<string, number>
 }
 
-// ---------------------------------------------------------------------------
-// Clients
-// ---------------------------------------------------------------------------
-
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // ---------------------------------------------------------------------------
 // Claude enrichment
@@ -116,12 +84,8 @@ Guest speech excerpt:
 ${guestSpeech}
 `.trim()
 
-async function enrichEpisode(
-  guestName: string,
-  chunks: Chunk[]
-): Promise<Enrichment | null> {
-  // Use first ~6000 chars of guest speech only
-  const guestSpeech = chunks
+async function enrichEpisode(guestName: string, turns: Chunk[]): Promise<Enrichment | null> {
+  const guestSpeech = turns
     .filter((c) => c.is_guest)
     .map((c) => c.text)
     .join('\n\n')
@@ -133,17 +97,9 @@ async function enrichEpisode(
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: ENRICHMENT_PROMPT(guestName, guestSpeech),
-        },
-      ],
+      messages: [{ role: 'user', content: ENRICHMENT_PROMPT(guestName, guestSpeech) }],
     })
-
-    const raw =
-      message.content[0].type === 'text' ? message.content[0].text : ''
-
+    const raw = message.content[0].type === 'text' ? message.content[0].text : ''
     const json = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
     return JSON.parse(json) as Enrichment
   } catch (err) {
@@ -153,89 +109,42 @@ async function enrichEpisode(
 }
 
 // ---------------------------------------------------------------------------
-// Voyage AI embeddings
-// ---------------------------------------------------------------------------
-
-async function embedTexts(texts: string[]): Promise<number[][]> {
-  const embeddings: number[][] = []
-
-  for (let i = 0; i < texts.length; i += EMBED_BATCH_SIZE) {
-    const batch = texts.slice(i, i + EMBED_BATCH_SIZE)
-
-    const res = await fetch(VOYAGE_API_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.VOYAGE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ model: VOYAGE_MODEL, input: batch }),
-    })
-
-    if (!res.ok) {
-      const body = await res.text()
-      throw new Error(`Voyage API error ${res.status}: ${body}`)
-    }
-
-    const data = (await res.json()) as {
-      data: { embedding: number[]; index: number }[]
-    }
-
-    // Sort by index to preserve order
-    const sorted = data.data.sort((a, b) => a.index - b.index)
-    embeddings.push(...sorted.map((d) => d.embedding))
-  }
-
-  return embeddings
-}
-
-// ---------------------------------------------------------------------------
 // Main ingestion loop
 // ---------------------------------------------------------------------------
 
-async function processEpisode(episodeDir: string): Promise<void> {
+async function processEpisode(episodeDir: string): Promise<'ingested' | 'skipped'> {
   const transcriptPath = path.join(episodeDir, 'transcript.md')
-  if (!fs.existsSync(transcriptPath)) return
+  if (!fs.existsSync(transcriptPath)) return 'skipped'
 
-  const raw = fs.readFileSync(transcriptPath, 'utf-8')
-  const { data: fm, content } = matter(raw)
+  const { data: fm, content } = matter(fs.readFileSync(transcriptPath, 'utf-8'))
   const frontmatter = fm as Frontmatter
 
   // Keyed on folder name: several folders share a video_id in their frontmatter.
   const slug = path.basename(episodeDir)
   const videoId = frontmatter.video_id || null
 
-  const { data: existing } = await supabase
-    .from('episodes')
-    .select('id')
-    .eq('slug', slug)
-    .single()
-
+  const { data: existing } = await supabase.from('episodes').select('id').eq('slug', slug).maybeSingle()
   if (existing) {
     console.log(`  ↩  Already ingested, skipping.`)
-    return
+    return 'skipped'
   }
 
-  // Parse & chunk
-  const rawTurns = parseTranscript(content)
-  const chunks = mergeConsecutiveTurns(rawTurns)
-
-  if (chunks.length === 0) {
-    console.warn(`  ⚠️  No chunks parsed, skipping.`)
-    return
+  const turns = mergeConsecutiveTurns(parseTranscript(content))
+  if (turns.length === 0) {
+    console.warn(`  ⚠️  No speaker turns parsed, skipping.`)
+    return 'skipped'
   }
 
-  // Claude enrichment
   console.log(`  🤖 Enriching with Claude…`)
-  const enrichment = await enrichEpisode(frontmatter.guest, chunks)
+  const enrichment = await enrichEpisode(frontmatter.guest, turns)
 
-  // Insert episode row
   const { data: episodeRow, error: epErr } = await supabase
     .from('episodes')
     .insert({
       slug,
       guest: frontmatter.guest,
       title: frontmatter.title,
-      youtube_url: frontmatter.youtube_url ?? null,
+      youtube_url: videoId ? `https://www.youtube.com/watch?v=${videoId}` : null,
       video_id: videoId,
       publish_date: frontmatter.publish_date ?? null,
       description: frontmatter.description ?? null,
@@ -252,35 +161,12 @@ async function processEpisode(episodeDir: string): Promise<void> {
     .select('id')
     .single()
 
-  if (epErr || !episodeRow) {
-    throw new Error(`Supabase episode insert failed: ${epErr?.message}`)
-  }
+  if (epErr || !episodeRow) throw new Error(`Supabase episode insert failed: ${epErr?.message}`)
 
-  const episodeId = episodeRow.id
-
-  // Embed chunks
-  console.log(`  🔢 Embedding ${chunks.length} chunks…`)
-  const texts = chunks.map((c) => c.text)
-  const embeddings = await embedTexts(texts)
-
-  // Insert chunks
-  // Embeddings are formatted as pgvector text literals ("[v1,v2,…]") so
-  // Postgres casts them to halfvec(1024) based on the column type.
-  const chunkRows = chunks.map((c, i) => ({
-    episode_id: episodeId,
-    speaker: c.speaker,
-    is_guest: c.is_guest,
-    timestamp_start: c.timestamp_start,
-    text: c.text,
-    embedding: `[${embeddings[i].join(',')}]`,
-  }))
-
-  const { error: chunkErr } = await supabase.from('chunks').insert(chunkRows)
-  if (chunkErr) {
-    throw new Error(`Supabase chunks insert failed: ${chunkErr.message}`)
-  }
-
-  console.log(`  ✓  ${chunks.length} chunks stored.`)
+  console.log(`  🔢 Chunking and embedding…`)
+  const count = await writeEpisodeChunks(supabase, { id: episodeRow.id, guest: frontmatter.guest, title: frontmatter.title }, content)
+  console.log(`  ✓  ${count} chunks stored.`)
+  return 'ingested'
 }
 
 async function main() {
@@ -308,31 +194,24 @@ async function main() {
 
   console.log(`\nIngesting ${episodeDirs.length} episode(s)…\n`)
 
-  let success = 0
+  let ingested = 0
   let skipped = 0
   let failed = 0
 
   for (let i = 0; i < episodeDirs.length; i++) {
     const dir = episodeDirs[i]
-    const slug = path.basename(dir)
-    console.log(`[${i + 1}/${episodeDirs.length}] ${slug}`)
-
+    console.log(`[${i + 1}/${episodeDirs.length}] ${path.basename(dir)}`)
     try {
-      const before = success + skipped
-      await processEpisode(dir)
-      if (success + skipped === before) skipped++  // was already ingested
-      else success++
+      if ((await processEpisode(dir)) === 'ingested') ingested++
+      else skipped++
     } catch (err) {
       console.error(`  ✗  ${(err as Error).message}`)
       failed++
     }
-
-    if (i < episodeDirs.length - 1) {
-      await new Promise((r) => setTimeout(r, INTER_EPISODE_DELAY_MS))
-    }
+    if (i < episodeDirs.length - 1) await new Promise((r) => setTimeout(r, INTER_EPISODE_DELAY_MS))
   }
 
-  console.log(`\nDone. ✓ ${success} ingested  ↩ ${skipped} skipped  ✗ ${failed} failed`)
+  console.log(`\nDone. ✓ ${ingested} ingested  ↩ ${skipped} skipped  ✗ ${failed} failed`)
 }
 
 main().catch((err) => {

@@ -13,7 +13,8 @@
 import fs from 'fs'
 import path from 'path'
 import matter from 'gray-matter'
-import { supabase, TRANSCRIPTS_DIR, EVAL_DIR } from './eval/common'
+import { supabase, TRANSCRIPTS_DIR } from './lib/db'
+import { EVAL_DIR } from './eval/common'
 import { parseTranscript, isGuestSpeaker } from './lib/transcript'
 
 const LENGTH_TOLERANCE_S = 90
