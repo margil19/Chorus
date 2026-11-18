@@ -51,3 +51,5 @@ scripts/eval/last-run.json
 scripts/eval/transcript-audit.json
 scripts/eval/episodes-backup-*.json
 scripts/eval/last-run-search.json
+scripts/eval/episodes-backup-videos-*.json
+scripts/eval/episodes-backup-titles-*.json

@@ -488,7 +488,7 @@
         "quote": "Basically, the short of it is, the first thing it argues is that the most important thing to figure out when you're dealing with any decision is actually figuring out how important that decision is. Since we're faced with hundreds of decisi…",
         "youtube_url": "",
         "timestamp_start": "36:36",
-        "episode_title": "AI prompt engineering in 2025: What works and what doesn’t | Sander Schulhoff",
+        "episode_title": "Brandon Chu on Lenny's Podcast",
         "mental_models": [
           "Founder skills as a career differentiator for senior PMs (storytelling, conviction-based decisions, leading through ambiguity)",
           "Domain expertise as a mid-career accelerant before founder skills take over",
@@ -1176,7 +1176,7 @@
         "quote": "I'm probably going to write something on this soon. In the past month, I'd actually have two totally different people who came to me with the same problem. And they said, \"My CEO brought me a strategy and the strategy is increased revenue b…",
         "youtube_url": "",
         "timestamp_start": "26:15",
-        "episode_title": "Bending the universe in your favor | Claire Vo (LaunchDarkly, Color, Optimizely, ChatPRD)",
+        "episode_title": "Jackie Bavaro on Lenny's Podcast",
         "mental_models": [
           "Mental model matching: people fail to learn not from lack of ability but because explanations don't align with their existing mental models",
           "Interview questions as trick questions: PM interview prompts like 'design a bathroom' are really asking about customer segmentation and user needs, not personal preferences",
@@ -1280,9 +1280,9 @@
       {
         "guest": "Nikita Bier",
         "quote": "A lot of people ask me like, \"What's the benchmark for product-market fit?\" And this founder that I'm friends with, his name's Roger Dickey, he told me this one time, \"If your product's working, you'll know. And if there's any uncertainty, …",
-        "youtube_url": "",
+        "youtube_url": "https://www.youtube.com/watch?v=bhnfZhJWCWY&t=2166",
         "timestamp_start": "00:36:06",
-        "episode_title": "Driving alignment within teams, work-life balance, and the changing PM landscape | Nikita Miller",
+        "episode_title": "How to consistently go viral: Nikita Bier’s playbook for winning at consumer apps",
         "mental_models": [
           "Crystallizing latent motivation — identifying distorted behaviors users exhibit to fulfill an underlying need and building a direct solution around that core desire",
           "Viral loop dependency on daily physical proximity — teens are valuable as users because they see each other every day, enabling organic word-of-mouth loops",
@@ -1307,7 +1307,7 @@
           "guest_role": "Founder",
           "company_stage": "Startup"
         },
-        "video_id": ""
+        "video_id": "bhnfZhJWCWY"
       },
       {
         "guest": "Grant Lee",
@@ -1520,7 +1520,7 @@
         "quote": "This is where you work backwards from your vision. You say \"Okay, I think as a company, we can achieve our vision in five years or 10 years or two years or whatever it is.\" And you say \"Working backwards from that, if we're going to be at o…",
         "youtube_url": "",
         "timestamp_start": "24:34",
-        "episode_title": "Bending the universe in your favor | Claire Vo (LaunchDarkly, Color, Optimizely, ChatPRD)",
+        "episode_title": "Jackie Bavaro on Lenny's Podcast",
         "mental_models": [
           "Mental model matching: people fail to learn not from lack of ability but because explanations don't align with their existing mental models",
           "Interview questions as trick questions: PM interview prompts like 'design a bathroom' are really asking about customer segmentation and user needs, not personal preferences",
@@ -2040,7 +2040,7 @@
         "quote": "When I'm interviewing any of those kinds of candidates, I am looking for leadership skills. Can they do inspired communication of a vision? I do look for product strategy skills. That helps you to frame what that vision is. I do look for ma…",
         "youtube_url": "",
         "timestamp_start": "50:07",
-        "episode_title": "35 years of product design wisdom from Apple, Disney, Pinterest and beyond | Bob Baxley",
+        "episode_title": "Gibson Biddle on Lenny's Podcast",
         "mental_models": [
           "Delight Customers: The job is not merely to satisfy but to delight customers, framed as a 10X improvement standard akin to Peter Thiel's Zero to One principle",
           "Hard-to-Copy Advantage: Sustainable product strategy requires building features or experiences that competitors cannot easily replicate",
@@ -2850,7 +2850,7 @@
         "quote": "So it's a easy mistake. You can fall into the trap because the business demands you to go faster. If you don't have the manpower, you won't be able to. But I would say, believe me when I say this, this is a pain, right, when you have the wr…",
         "youtube_url": "",
         "timestamp_start": "00:36:00",
-        "episode_title": "Product management theater | Marty Cagan (Silicon Valley Product Group)",
+        "episode_title": "Ray Cao on Lenny's Podcast",
         "mental_models": [
           "Context, no control — empowering teams to operate like business owners rather than managing through top-down directives",
           "Lego full-picture thinking — you must see all the pieces before you can assemble a coherent whole; connecting dots across the organization",
@@ -2882,7 +2882,7 @@
         "quote": "But if process is hurting progress, you should not be the person saying, \"No, no, no, no. We can't do it, because I'm just so married to the process. Because as a PM, that's what I own.\" I mean, as a PM you don't write code typically, you d…",
         "youtube_url": "",
         "timestamp_start": "00:52:58",
-        "episode_title": "Becoming more strategic, navigating difficult colleagues, founder mode, more | Anneka Gupta",
+        "episode_title": "Manik Gupta on Lenny's Podcast",
         "mental_models": [
           "Luck and Risk framework (from Morgan Housel's Psychology of Money) — success is shaped more by luck and risk than we typically attribute",
           "Surround yourself with A+ people — career growth accelerates by proximity to exceptional individuals",
@@ -3019,9 +3019,9 @@
       {
         "guest": "Jake Knapp + John Zeratsky 2.0",
         "quote": "Exactly. Yeah, it's a chance to... In the 10 hours, it's a chance to get clarity about the core of your strategy, which is something that teams will often go months without really nailing down. And the three to four weeks, that's a chance t…",
-        "youtube_url": "",
+        "youtube_url": "https://www.youtube.com/watch?v=UbjAOCzpNWc&t=859",
         "timestamp_start": "00:14:19",
-        "episode_title": "Making time for what matters | Jake Knapp and John Zeratsky (Authors of Make Time, Character VC)",
+        "episode_title": "Rapidly test and validate any startup idea with the 2-day Foundation Sprint",
         "mental_models": [
           "Design Sprint (5-day framework: map, sketch, decide, prototype, test)",
           "Foundation Sprint (10-hour core team alignment session at project kickoff)",
@@ -3046,7 +3046,7 @@
           "guest_role": "Co-founders and General Partners",
           "company_stage": "Early-stage / Seed"
         },
-        "video_id": ""
+        "video_id": "UbjAOCzpNWc"
       },
       {
         "guest": "Laura Schaffer",
