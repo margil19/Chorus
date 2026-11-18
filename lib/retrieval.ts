@@ -189,7 +189,8 @@ export async function retrieve(
   const t0 = Date.now()
   const embedding = await embedQuery(opts.searchText ?? question)
   const t1 = Date.now()
-  const candidates = await searchChunks(supabase, embedding, null, opts.candidates ?? 40)
+  // 20 vs 40 candidates scored the same after reranking (scripts/eval/sweep-candidates.ts); 20 is cheaper.
+  const candidates = await searchChunks(supabase, embedding, null, opts.candidates ?? 20)
   const t2 = Date.now()
   const reranked = await rerank(question, candidates)
   const t3 = Date.now()

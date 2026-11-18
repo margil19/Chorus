@@ -18,7 +18,7 @@ Live at [chorus-steel.vercel.app](https://chorus-steel.vercel.app).
 ```
 question
   → Voyage voyage-3-large embedding (input_type=query)
-  → match_chunks_v2: top 40 guest-answer windows by vector similarity (pgvector HNSW)
+  → match_chunks_v2: top 20 guest-answer windows by vector similarity (pgvector HNSW)
   → Voyage rerank-2.5
   → diversify: ≤2 per guest, 1 per answer (no cap for a guest named in the question)
   → widen each window with its neighbours from the same answer (~2.4k chars) + Lenny's question
@@ -80,6 +80,7 @@ Source transcripts are markdown files with YAML frontmatter, one folder per epis
 | `npm run rechunk -- --all` | Rebuilds every episode's `chunks_v2` rows from the transcripts and skips duplicate conversations. `--dry-run` for counts only |
 | `npm run precompute -- --refresh` | Regenerates the 18 instant answers (needs `npm run dev` running) |
 | `npm run eval` | Blind retrieval eval: Claude grades the top 5 passages per test question for several pipeline variants. `--questions scripts/eval/questions-named.json` for named-entity questions |
+| `npx tsx scripts/eval/sweep-candidates.ts --k 20,40` | Same blind grading, comparing how many vector candidates go to the reranker |
 
 **Chunking.** Each guest answer (consecutive guest turns, with short host interjections like "Mm-hmm" absorbed) becomes a segment. Segments are split at sentence boundaries into ~1,200-character windows with ~200 characters of overlap. Answers under 50 words are dropped. The embedded text carries the guest, the episode title and — on the first window of an answer — Lenny's question.
 
