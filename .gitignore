@@ -50,3 +50,4 @@ next-env.d.ts
 scripts/eval/last-run.json
 scripts/eval/transcript-audit.json
 scripts/eval/episodes-backup-*.json
+scripts/eval/last-run-search.json

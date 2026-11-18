@@ -13,7 +13,10 @@ export const TRANSCRIPTS_DIR =
 
 export const EVAL_DIR = path.resolve(process.cwd(), 'scripts/eval')
 
-export const questions: string[] = JSON.parse(fs.readFileSync(path.join(EVAL_DIR, 'questions.json'), 'utf8'))
+const questionsArg = process.argv.indexOf('--questions')
+export const questions: string[] = JSON.parse(
+  fs.readFileSync(questionsArg >= 0 ? path.resolve(process.argv[questionsArg + 1]) : path.join(EVAL_DIR, 'questions.json'), 'utf8')
+)
 
 export async function voyageEmbed(texts: string[], inputType?: 'query' | 'document'): Promise<number[][]> {
   const res = await fetch('https://api.voyageai.com/v1/embeddings', {
