@@ -45,3 +45,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# eval outputs
+scripts/eval/last-run.json
+scripts/eval/transcript-audit.json
+scripts/eval/episodes-backup-*.json

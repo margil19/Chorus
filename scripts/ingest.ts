@@ -14,6 +14,7 @@ import matter from 'gray-matter'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
+import { parseTranscript, mergeConsecutiveTurns, type Chunk } from './lib/transcript'
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') })
 
@@ -48,19 +49,6 @@ interface Frontmatter {
   keywords?: string[]
 }
 
-interface RawTurn {
-  speaker: string
-  timestamp: string
-  text: string
-}
-
-interface Chunk {
-  speaker: string
-  is_guest: boolean
-  timestamp_start: string
-  text: string
-}
-
 interface GuestContext {
   industry: string
   company_stage: string
@@ -86,111 +74,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
-
-// ---------------------------------------------------------------------------
-// Transcript parsing
-// ---------------------------------------------------------------------------
-
-/**
- * Three header formats are handled:
- *
- * Format A — HH:MM:SS or MM:SS timestamp with named speaker:
- *   "Speaker Name (HH:MM:SS):"  /  "Speaker Name (MM:SS):"
- *
- * Format B — timestamp-only continuation (carry-forward speaker):
- *   "(HH:MM:SS):"  /  "(MM:SS):"
- *
- * Format C — no timestamp, speaker name only:
- *   "Speaker Name:"
- *   (timestamp_start is set to '' for these turns)
- */
-
-// Matches HH:MM:SS or MM:SS
-const TS = /\d{2}:\d{2}(?::\d{2})?/
-
-const SPEAKER_WITH_TS   = new RegExp(`^([^(]+?)\\s*\\((${TS.source})\\):\\s*$`)
-const CONTINUATION_TS   = new RegExp(`^\\((${TS.source})\\):\\s*$`)
-// Uppercase-led name, no parens, ends with colon — e.g. "Lenny:" or "Casey Winters:"
-const SPEAKER_NO_TS     = /^([A-Z][^:(\n]+?):\s*$/
-
-function parseTranscript(content: string): RawTurn[] {
-  const lines = content.split('\n')
-  const turns: RawTurn[] = []
-
-  let currentSpeaker = ''
-  let currentTimestamp = ''
-  let currentLines: string[] = []
-  // Track whether we have seen any header so we don't collect preamble text
-  let started = false
-
-  function flush() {
-    const text = currentLines.join(' ').trim()
-    if (text && started) {
-      turns.push({ speaker: currentSpeaker, timestamp: currentTimestamp, text })
-    }
-    currentLines = []
-  }
-
-  for (const line of lines) {
-    const speakerTsMatch = line.match(SPEAKER_WITH_TS)
-    const contTsMatch    = line.match(CONTINUATION_TS)
-    const speakerNoTs    = !speakerTsMatch && !contTsMatch
-                          ? line.match(SPEAKER_NO_TS)
-                          : null
-
-    if (speakerTsMatch) {
-      flush()
-      currentSpeaker    = speakerTsMatch[1].trim()
-      currentTimestamp  = speakerTsMatch[2]
-      started = true
-    } else if (contTsMatch) {
-      flush()
-      // carry-forward: currentSpeaker unchanged
-      currentTimestamp  = contTsMatch[1]
-      started = true
-    } else if (speakerNoTs) {
-      flush()
-      currentSpeaker    = speakerNoTs[1].trim()
-      currentTimestamp  = ''
-      started = true
-    } else if (line.trim() && started) {
-      currentLines.push(line.trim())
-    }
-  }
-
-  flush()
-  return turns
-}
-
-/**
- * Merge consecutive turns from the same speaker into a single chunk.
- * Keeps the earliest timestamp as timestamp_start.
- */
-function mergeConsecutiveTurns(turns: RawTurn[]): Chunk[] {
-  const chunks: Chunk[] = []
-
-  for (const turn of turns) {
-    if (!turn.text) continue
-
-    const isGuest =
-      turn.speaker !== '' &&
-      !turn.speaker.toLowerCase().includes('lenny')
-
-    const last = chunks[chunks.length - 1]
-    if (last && last.speaker === turn.speaker) {
-      last.text += ' ' + turn.text
-    } else {
-      chunks.push({
-        speaker: turn.speaker,
-        is_guest: isGuest,
-        timestamp_start: turn.timestamp,
-        text: turn.text,
-      })
-    }
-  }
-
-  return chunks
-}
 
 // ---------------------------------------------------------------------------
 // Claude enrichment
@@ -317,14 +200,14 @@ async function processEpisode(episodeDir: string): Promise<void> {
   const { data: fm, content } = matter(raw)
   const frontmatter = fm as Frontmatter
 
+  // Keyed on folder name: several folders share a video_id in their frontmatter.
   const slug = path.basename(episodeDir)
-  const videoId = frontmatter.video_id ?? slug
+  const videoId = frontmatter.video_id || null
 
-  // Skip if already ingested
   const { data: existing } = await supabase
     .from('episodes')
     .select('id')
-    .eq('video_id', videoId)
+    .eq('slug', slug)
     .single()
 
   if (existing) {
@@ -349,6 +232,7 @@ async function processEpisode(episodeDir: string): Promise<void> {
   const { data: episodeRow, error: epErr } = await supabase
     .from('episodes')
     .insert({
+      slug,
       guest: frontmatter.guest,
       title: frontmatter.title,
       youtube_url: frontmatter.youtube_url ?? null,

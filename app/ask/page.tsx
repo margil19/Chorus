@@ -360,8 +360,9 @@ function GuestDrawer({ source, onClose }: { source: Source | null; onClose: () =
             )}
           </div>
         </div>
+        {source?.youtube_url && (
         <div style={{ padding: '1.5rem 2rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-          <a href={source?.youtube_url} target="_blank" rel="noopener noreferrer"
+          <a href={source.youtube_url} target="_blank" rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 w-full transition-colors duration-150"
             style={{ background: '#E8543A', color: 'white', fontWeight: 600, fontSize: '14px', borderRadius: '100px', padding: '0.875rem' }}
             onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = '#d14a30')}
@@ -370,6 +371,7 @@ function GuestDrawer({ source, onClose }: { source: Source | null; onClose: () =
             Watch Episode
           </a>
         </div>
+        )}
       </div>
     </div>
   )

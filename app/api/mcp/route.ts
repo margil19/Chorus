@@ -70,7 +70,8 @@ function timestampToSeconds(ts: string): number {
   return 0
 }
 
-function buildYouTubeUrl(videoId: string, timestamp: string): string {
+function buildYouTubeUrl(videoId: string | null, timestamp: string): string {
+  if (!videoId) return ''
   const t = timestampToSeconds(timestamp)
   const base = `https://www.youtube.com/watch?v=${videoId}`
   return t > 0 ? `${base}&t=${t}` : base
@@ -329,7 +330,8 @@ function buildMcpServer(): McpServer {
 
         for (const ep of episodes) {
           lines.push(`- "${ep.title}" (${ep.publish_date ?? 'n/a'})`)
-          lines.push(`  ${ep.youtube_url || `https://www.youtube.com/watch?v=${ep.video_id}`}`)
+          const url = ep.youtube_url || (ep.video_id ? `https://www.youtube.com/watch?v=${ep.video_id}` : '')
+          if (url) lines.push(`  ${url}`)
           if (ep.description) lines.push(`  ${ep.description.slice(0, 120)}${ep.description.length > 120 ? '…' : ''}`)
         }
 

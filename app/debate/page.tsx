@@ -258,7 +258,7 @@ function CombatantCard({
       </div>
 
       {/* Watch clip pill */}
-      {source && (
+      {source?.youtube_url && (
         <a
           href={source.youtube_url}
           target="_blank"

@@ -836,9 +836,10 @@ function GuestDrawer({
         </div>
 
         {/* Watch button */}
+        {source?.youtube_url && (
         <div style={{ padding: '1.5rem 2rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <a
-            href={source?.youtube_url}
+            href={source.youtube_url}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 w-full hover:bg-[rgba(255,255,255,0.9)] transition-colors duration-150"
@@ -855,6 +856,7 @@ function GuestDrawer({
             Watch Episode
           </a>
         </div>
+        )}
       </div>
     </div>
   )

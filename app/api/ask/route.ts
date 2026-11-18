@@ -130,7 +130,8 @@ function timestampToSeconds(ts: string): number {
   return 0
 }
 
-function buildYouTubeUrl(videoId: string, timestamp: string): string {
+function buildYouTubeUrl(videoId: string | null, timestamp: string): string {
+  if (!videoId) return ''
   const t = timestampToSeconds(timestamp)
   const base = `https://www.youtube.com/watch?v=${videoId}`
   return t > 0 ? `${base}&t=${t}` : base
