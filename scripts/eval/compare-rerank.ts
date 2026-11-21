@@ -14,6 +14,8 @@ import { questions } from './common'
 import { searchChunks, rerank, diversify, peopleNamedIn, type RetrievedChunk } from '../../lib/retrieval'
 
 const K = 5
+// Same candidate pool as the live app (lib/retrieval.ts retrieve()).
+const CANDIDATES = 20
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const SYSTEMS = ['B', 'D', 'E', 'G'] as const
 type Sys = (typeof SYSTEMS)[number]
@@ -61,8 +63,8 @@ async function main() {
 
   for (const [i, q] of questions.entries()) {
     // Stop words only → the function's keyword side is empty, so this is pure vector search.
-    const vec = await timed(ms, 'vector search', () => searchChunks(supabase, emb[i], null, 40))
-    const hyb = await timed(ms, 'hybrid search', () => searchChunks(supabase, emb[i], q, 40))
+    const vec = await timed(ms, 'vector search', () => searchChunks(supabase, emb[i], null, CANDIDATES))
+    const hyb = await timed(ms, 'hybrid search', () => searchChunks(supabase, emb[i], q, CANDIDATES))
     const d = await timed(ms, 'rerank-2.5', () => rerank(q, hyb))
     const e = await rerank(q, vec)
     const pick = (sys: Sys, xs: RetrievedChunk[], uncapped?: Set<string>): Hit[] =>
